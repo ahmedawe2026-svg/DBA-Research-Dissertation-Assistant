@@ -35,6 +35,8 @@ An Arabic, RTL web app to manage a doctoral dissertation end to end: **project p
 
 It works offline for most parts (data is stored locally in your browser) and uses the internet optionally for academic search and reference verification.
 
+> 💡 **Contributors wanted!** This project is fully open to contributions — start with the [good first issues](https://github.com/ahmedawe2026-svg/DBA-Research-Dissertation-Assistant/labels/good%20first%20issue), read the [Contributing Guide](CONTRIBUTING.md), and join the [Discussions](https://github.com/ahmedawe2026-svg/DBA-Research-Dissertation-Assistant/discussions).
+
 ---
 
 ## 🖼️ Screenshots
