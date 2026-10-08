@@ -26,6 +26,9 @@
   <img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg">
 </p>
 
+> [!IMPORTANT]
+> **⚠️ Ethical & academic note:** This app is a helper tool for collecting, checking and formatting — it is not a substitute for the researcher or supervisor. Every output must be reviewed, edited and verified, and you must comply with your university's policy on assistive tools. AI-generated text is only a first draft.
+
 ---
 
 An Arabic, RTL web app to manage a doctoral dissertation end to end: **project profile, structure tracker, literature review, reference log, reference verification, academic search, consistency matrix, and an automated generator for scholarly material**.
