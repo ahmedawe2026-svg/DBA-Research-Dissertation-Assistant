@@ -36,6 +36,8 @@
 
 يعمل بلا إنترنت في معظم الأجزاء (البيانات تُحفظ محلياً في متصفّحك)، ويستخدم الإنترنت اختيارياً للبحث الأكاديمي والتحقق من المراجع.
 
+> 💡 **مساهمون مطلوبون!** المشروع مفتوح بالكامل للمساهمة — ابدأ من [قضايا «بداية جيدة»](https://github.com/ahmedawe2026-svg/DBA-Research-Dissertation-Assistant/labels/good%20first%20issue)، واقرأ [دليل المساهمة](CONTRIBUTING.md)، وانضم إلى [النقاشات](https://github.com/ahmedawe2026-svg/DBA-Research-Dissertation-Assistant/discussions).
+
 ---
 
 ## 🖼️ لقطات الشاشة
