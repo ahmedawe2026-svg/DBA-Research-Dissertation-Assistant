@@ -23,6 +23,8 @@
   <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black.svg">
   <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-0f8a52.svg">
   <img alt="RTL" src="https://img.shields.io/badge/العربية-RTL-7038d8.svg">
+  <img alt="CI" src="https://github.com/ahmedawe2026-svg/DBA-Research-Dissertation-Assistant/actions/workflows/ci.yml/badge.svg">
+  <img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg">
 </p>
 
 ---
