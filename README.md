@@ -38,34 +38,29 @@
 ## 🗂️ بنية المستودع
 
 ```
-thesis-desk/
-├── index.html                  # الصفحة الرئيسية (تعتمد على ملفات css/js الخارجية)
-├── assets/
-│   ├── css/
-│   │   └── style.css           # كل الأنماط (نهاري/ليلي تلقائي)
-│   └── js/
-│       └── app.js              # كل منطق التطبيق
-├── standalone/
-│   └── thesis-desk-v3.html     # نسخة مكتفية ذاتياً (ملف واحد يعمل بأي مكان)
-├── docs/
-│   └── guide.html              # دليل الاستخدام الشامل (22 قسماً، قابل للطباعة PDF)
+DBA-Research-Dissertation-Assistant/
+├── index.html              # الصفحة الرئيسية (تعتمد على style.css و app.js)
+├── style.css               # كل الأنماط (نهاري/ليلي تلقائي)
+├── app.js                  # كل منطق التطبيق
+├── thesis-desk-v3.html     # نسخة مكتفية ذاتياً (ملف واحد يعمل بأي مكان)
+├── guide.html              # دليل الاستخدام الشامل (22 قسماً، قابل للطباعة PDF)
 ├── README.md
 ├── LICENSE
 └── .gitignore
 ```
 
 > **ملاحظة:** توجد نسختان:
-> - `index.html` + `assets/` → للتطوير على GitHub / النشر عبر GitHub Pages.
-> - `standalone/thesis-desk-v3.html` → ملف واحد جاهز للاستخدام المباشر بمجرد فتحه في المتصفّح.
+> - `index.html` + `style.css` + `app.js` → للتطوير والنشر عبر GitHub Pages.
+> - `thesis-desk-v3.html` → ملف واحد جاهز للاستخدام المباشر بمجرد فتحه في المتصفّح.
 
-> 📖 **دليل الاستخدام الكامل:** [`docs/guide.html`](docs/guide.html) — يشرح كل تبويب خطوة بخطوة، وقابل للطباعة أو الحفظ كـ PDF.
+> 📖 **دليل الاستخدام الكامل:** [`guide.html`](guide.html) — يشرح كل تبويب خطوة بخطوة، وقابل للطباعة أو الحفظ كـ PDF.
 
 ---
 
 ## 🚀 التشغيل
 
 ### الطريقة الأولى — فتح مباشر
-افتح `standalone/thesis-desk-v3.html` في متصفّحك مباشرة (Chrome / Edge / Firefox).
+افتح `thesis-desk-v3.html` في متصفّحك مباشرة (Chrome / Edge / Firefox).
 
 ### الطريقة الثانية — نسخة المطوّر
 افتح `index.html` مباشرة، أو شغّل خادماً محلياً:
@@ -80,7 +75,7 @@ npx serve .
 ثم افتح `http://localhost:8080`.
 
 ### النشر عبر GitHub Pages
-1. ارفع المستودع إلى GitHub.
+1. ارفع الملفات إلى المستودع.
 2. `Settings → Pages → Source: Deploy from a branch → main / (root)`.
 3. سيعمل التطبيق على `https://<username>.github.io/<repo>/`.
 
@@ -89,8 +84,8 @@ npx serve .
 ## 📖 دليل الاستخدام
 دليل مفصّل يشرح كل تبويب خطوة بخطوة (22 قسماً) متوفّر في:
 
-- الملف: [`docs/guide.html`](docs/guide.html)
-- عبر GitHub Pages (بعد النشر): `https://<username>.github.io/<repo>/docs/guide.html`
+- الملف: [`guide.html`](guide.html)
+- عبر GitHub Pages (بعد النشر): `https://<username>.github.io/<repo>/guide.html`
 
 الدليل يدعم الوضعين النهاري/الليلي، وقابل للطباعة أو الحفظ كـ **PDF**.
 
