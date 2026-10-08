@@ -1,0 +1,19 @@
+# نظام التشغيل
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# المحررات
+.vscode/
+.idea/
+*.swp
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ملفات مؤقتة
+*.tmp
+*.log
+~$*

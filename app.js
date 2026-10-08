@@ -1,0 +1,895 @@
+
+"use strict";
+const KEY="thesis-desk-v2",OLD="thesis-desk-v1",TKEY="td-theme";
+const CH=[["الجزء التمهيدي",["صفحة العنوان","الإقرار","الشكر والتقدير","الملخص (عربي/إنجليزي)","قوائم المحتويات والجداول والاختصارات"]],
+["الفصل الأول: الإطار العام",["المقدمة","خلفية الدراسة","مشكلة الدراسة","أسئلة الدراسة","أهداف الدراسة","أهمية الدراسة","حدود الدراسة","مصطلحات الدراسة","نموذج الدراسة","الفروض المبدئية","المنهج باختصار"]],
+["الفصل الثاني: الإطار النظري والدراسات السابقة",["النظرية الحاكمة","المتغير المستقل: مفهوم وأبعاد","المتغير التابع: مفهوم وأبعاد","المتغير الوسيط (إن وجد)","العلاقة النظرية بين المتغيرات","الدراسات العربية","الدراسات الأجنبية","التعليق النقدي والفجوة البحثية","النموذج المفاهيمي واشتقاق الفروض"]],
+["الفصل الثالث: المنهجية",["فلسفة ومنهج البحث","تصميم البحث","المجتمع والعينة وحجمها","أداة جمع البيانات والقياس","الدراسة الاستكشافية (المقابلات)","الاختبار التجريبي للأداة","الصدق والثبات","الاعتبارات الأخلاقية","أساليب التحليل وفحص الافتراضات"]],
+["الفصل الرابع: النتائج",["وصف العينة","الإحصاء الوصفي","اختبار الفروض","الارتباط والانحدار والتوسط","عرض النتائج في جداول"]],
+["الفصل الخامس: المناقشة",["مناقشة ومقارنة النتائج","الاستنتاجات","المساهمة العلمية","المساهمة المهنية","التوصيات وآليات التطبيق","القيود والدراسات المستقبلية"]],
+["الجزء الختامي",["المراجع (APA 7)","الملاحق","إفصاح أدوات المساعدة وفحص التشابه"]]];
+const ST=["لم يبدأ","جارٍ","مكتمل"];
+const AX={iv:"المستقل",dv:"التابع",med:"الوسيط",both:"يجمع المتغيرين"};
+const SF=[["author","الباحث"],["year","سنة النشر","n"],["title","عنوان الدراسة"],["goal","الهدف","t"],["hyp","الفرضيات","t"],["vars","المتغيرات","t"],["field","مجال التطبيق"],["pop","المجتمع"],["sample","العينة"],["tools","أدوات جمع البيانات"],["find","أهم النتائج","t"],["agree","أوجه الاتفاق","t"],["differ","أوجه الاختلاف","t"]];
+const MF=[["gap","الفجوة البحثية","t"],["q","السؤال"],["obj","الهدف"],["hyp","الفرض"],["inst","الأداة / المحور"],["test","الاختبار الإحصائي"],["res","النتيجة"],["rec","التوصية"]];
+const TYPOPT=[["","— غير مصنّف —"],["j","مجلة محكّمة"],["d","رسالة دكتوراة"],["m","رسالة ماجستير"],["c","مؤتمر محكّم"],["r","تقرير / جهة رسمية"],["o","مصدر آخر"]];
+const TYPN={j:"مجلة محكّمة",d:"رسالة دكتوراة",m:"رسالة ماجستير",c:"مؤتمر محكّم",r:"تقرير",o:"مصدر آخر","":"—"};
+const SRDB=["Scopus","Web of Science","EBSCO","ProQuest","Google Scholar","ScienceDirect","Springer","Wiley","JSTOR","ERIC","PubMed","شمعة SHAMAA","دار المنظومة","أخرى"];
+const LBL={ok:"نجاح",wr:"تنبيه",fl:"نقص"};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const num=v=>parseInt(v,10)||0;
+const cl=o=>JSON.parse(JSON.stringify(o));
+const enc=encodeURIComponent;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const hasAr=s=>/[\u0600-\u06FF]/.test(String(s||""));
+const safeUrl=u=>/^https?:\/\//i.test(String(u||""))?String(u):"";
+const fmtT=t=>new Date(t).toLocaleString("ar",{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+const blankP=n=>({id:uid(),name:n||"رسالة جديدة",created:Date.now(),updated:0,lastExp:0,
+ p:{title:"",deg:"DBA",sector:"",iv:"",dv:"",med:"",minY:2020,target:10},
+ sec:{},studies:[],refs:[],mx:[],sr:[],trash:[],snaps:[]});
+
+/* ===== التخزين والترحيل من النسخة القديمة ===== */
+function fixProjs(db){Object.values((db&&db.projects)||{}).forEach(p=>{
+ p.sec=p.sec||{};p.studies=p.studies||[];p.refs=p.refs||[];p.mx=p.mx||[];
+ p.sr=p.sr||[];p.trash=p.trash||[];p.snaps=p.snaps||[];
+ p.p=p.p||{};if(!(num(p.p.minY)>=1))p.p.minY=2020;
+ if(!Array.isArray(p.studies))p.studies=[]});
+ return db}
+let DB=null;
+try{DB=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!DB||typeof DB!=="object"||!DB.projects){DB={ver:2,cur:null,projects:{}};
+ try{const o=JSON.parse(localStorage.getItem(OLD));
+  if(o&&o.p){const pr=blankP(o.p.title||"نسخة قديمة مستوردة");
+   pr.p=o.p;pr.sec=o.sec||{};pr.studies=o.studies||[];pr.refs=o.refs||[];pr.mx=o.mx||[];pr.updated=Date.now();
+   DB.projects[pr.id]=pr;DB.cur=pr.id}}catch(e){}}
+fixProjs(DB);
+if(!DB.cur||!DB.projects[DB.cur]){const k=Object.keys(DB.projects);DB.cur=k.length?k[0]:null}
+if(!DB.cur){const pr=blankP();DB.projects[pr.id]=pr;DB.cur=pr.id}
+const P=()=>DB.projects[DB.cur];
+let S=P(),tab=0,uiOpen={},RUN=new Set(),V={busy:0,done:0,total:0};
+let F={stQ:"",stAx:"",rfQ:"",rfCat:"",sq:"",stype:"all",slang:"all",sylo:"2020",syhi:"",ag:"",agto:"",agn:"12",elpr:""};
+
+/* ===== الحفظ والمؤشرات ===== */
+let svT=null;
+function save(){try{S.updated=Date.now()}catch(e){}
+ try{localStorage.setItem(KEY,JSON.stringify(DB));
+  const el=document.getElementById("saved");el.classList.add("on");
+  clearTimeout(svT);svT=setTimeout(()=>el.classList.remove("on"),1200)}
+ catch(e){toast("⚠ تعذّر الحفظ: مساحة التخزين ممتلئة. صدّر نسخة فوراً ثم احذف اللقطات القديمة من تبويب النسخ الاحتياطي.",1)}}
+let tsT=null;
+function toast(m,err){const t=document.getElementById("toast");t.textContent=m;t.className=err?"err":"";
+ t.classList.add("show");clearTimeout(tsT);tsT=setTimeout(()=>t.classList.remove("show"),err?8000:2400)}
+function copy(txt){try{const ta=document.createElement("textarea");ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";
+ document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();return true}catch(e){}
+ try{if(navigator.clipboard){navigator.clipboard.writeText(txt);return true}}catch(e){}return false}
+
+/* ===== المظهر ===== */
+let thm="";try{thm=localStorage.getItem(TKEY)||""}catch(e){}
+function applyTheme(){document.documentElement.dataset.theme=thm;
+ const b=document.getElementById("thm");
+ b.textContent=thm==="dark"?"🌙":thm==="light"?"☀️":"🖥️";
+ b.title="المظهر: "+(thm===""?"تلقائي (حسب النظام)":thm==="light"?"نهاري":"ليلي")+" — انقر للتبديل"}
+
+/* ===== أدوات المرجع / الفحص ===== */
+function doiOf(r){const d=String((r&&r.doi)||"").trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i,"");
+ return /^10\.\d{4,9}\//.test(d)?d:""}
+function normT(s){return String(s==null?"":s).toLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim()}
+function simT(a,b){const A=new Set(normT(a).split(" ").filter(x=>x.length>2)),B=new Set(normT(b).split(" ").filter(x=>x.length>2));
+ if(!A.size||!B.size)return 0;let i=0;A.forEach(x=>{if(B.has(x))i++});return i/Math.max(1,Math.min(A.size,B.size))}
+function crYear(m){const o=m.issued||m["published-print"]||m["published-online"]||m.created;return o&&o["date-parts"]?num(o["date-parts"][0][0]):0}
+function segEnc(doi){return String(doi).split("/").map(encodeURIComponent).join("/")}
+async function jget(u,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms||13000);
+ try{const r=await fetch(u,{signal:c.signal,headers:{Accept:"application/json"}});
+  if(!r.ok){const e=new Error("HTTP "+r.status);e.http=r.status;throw e}
+  return await r.json()}finally{clearTimeout(t)}}
+
+async function coreCheck(o){
+ const doi=String(o.doi||"").trim(),title=String(o.title||"").trim(),cite=String(o.cite||"").trim(),y=num(o.year);
+ if(!doi&&!title&&!cite)return {t:Date.now(),ok:"fl",msg:"لا يوجد DOI أو عنوان لفحصه"};
+ const [a,b]=await Promise.allSettled([
+  doi?jget("https://api.crossref.org/works/"+segEnc(doi)):jget("https://api.crossref.org/works?query.bibliographic="+enc(title||cite)+"&rows=5"),
+  doi?jget("https://api.openalex.org/works/doi:"+segEnc(doi)+"?mailto=thesis.desk.check@example.com"):jget("https://api.openalex.org/works?search="+enc(title||cite)+"&per-page=5")
+ ]);
+ let cr=null,oa=null,src=[];
+ if(a.status==="fulfilled"){const m=a.value;cr=doi?m:((m.message&&m.message.items&&m.message.items[0])||null);if(cr)src.push("Crossref")}
+ if(b.status==="fulfilled"){const m=b.value;oa=doi?m:((m.results&&m.results[0])||null);if(oa)src.push("OpenAlex")}
+ if(!cr&&!oa){
+  const e1=a.status==="rejected"?a.reason:null;
+  if(e1&&e1.http===404)return {t:Date.now(),ok:"fl",msg:"⛔ هذا الـ DOI غير موجود في Crossref — تحقق من صحة الرقم"};
+  return {t:Date.now(),ok:"fl",msg:"تعذّر الوصول إلى Crossref/OpenAlex — تأكد من اتصال الإنترنت"}}
+ const ct=(cr&&cr.title&&cr.title[0])||(oa&&(oa.title||oa.display_name))||"";
+ const refT=title||"";
+ const sim=refT&&ct?simT(refT,ct):(cite&&ct?Math.max(.25,Math.min(.95,simT(cite,ct))):null);
+ const cY=cr?crYear(cr):0,oY=oa?(oa.publication_year||0):0;
+ const py=cY||oY,yOk=!y||!py||Math.abs(py-y)<=1;
+ const ret=!!((oa&&oa.is_retracted===true)||(cr&&cr["update-to"]&&cr["update-to"].some(x=>x.type&&/retract/i.test(x.type))));
+ const j=(cr&&cr["container-title"]&&cr["container-title"][0])||(oa&&oa.primary_location&&oa.primary_location.source&&oa.primary_location.source.display_name)||"";
+ const typ=(cr&&cr.type)||(oa&&oa.type)||"";
+ const cited=cr&&cr["is-referenced-by-count"]!=null?cr["is-referenced-by-count"]:(oa&&oa.cited_by_count!=null?oa.cited_by_count:null);
+ const oaSt=(oa&&oa.open_access&&oa.open_access.oa_status)||"";
+ const aut=cr&&cr.author?cr.author.map(x=>x.family?(x.family+", "+String(x.given||"").split(/\s+/).map(w=>w?w[0]+".":"").join(" ")):(x.name||"")).filter(Boolean).join("; "):"";
+ const crDoi=(cr&&cr.DOI)||"";
+ const v={t:Date.now(),ok:"ok",msg:"",src:src.join(" + "),ct:ct,cy:py,j:j,typ:typ,cited:cited,oa:oaSt,ret:ret?1:0,sim:sim,
+  doi:crDoi||doi,aut:aut,title:ct,sugg:(!doi&&crDoi)?crDoi:""};
+ if(ret){v.ok="fl";v.msg="⛔ تنبيه خطير: بيانات النشر تشير إلى أن هذا العمل مسحوب (Retraction) — لا يُستخدم كمرجع"}
+ else if(!doi&&crDoi){v.ok=sim!=null&&sim>=.6?"ok":"wr";v.msg="عُثر على سجل مرشّح في "+v.src+" — اعتمد الـ DOI المقترح ثم أعد الفحص لتصديق العنوان"}
+ else if(!refT){v.ok="wr";v.msg="السجل موجود في "+v.src+" — لكن أضف «عنوان المرجع» لمقارنته تلقائياً"}
+ else if(sim==null){v.ok="wr";v.msg="عُثر على السجل في "+v.src+" دون عنوان للمقارنة"}
+ else if(sim>=.6&&yOk){v.ok="ok";v.msg="✓ مطابقة عالية ("+Math.round(sim*100)+"%) مع السجل الرسمي في "+v.src}
+ else if(sim>=.35){v.ok="wr";v.msg="مطابقة جزئية ("+Math.round(sim*100)+"%) — راجع العنوان أو السنة"+(yOk?"":" (السنة مختلفة عن السجل)")}
+ else {v.ok="fl";v.msg="✗ تعارض: العنوان في "+v.src+" مختلف عن مرجعك ("+Math.round((sim||0)*100)+"%)"+(j?" · المصدر: "+j:"")}
+ return v;
+}
+
+async function verifyRef(i,quiet){
+ const r=S.refs[i];if(!r)return null;
+ const doi=doiOf(r),title=String(r.ttl||"").trim();
+ if(!doi&&!title&&!String(r.cite||"").trim()){if(!quiet)toast("لا يوجد DOI أو عنوان لفحصه",1);return null}
+ if(!quiet){RUN.add(i);render()}
+ let v=null;
+ try{v=await coreCheck({doi:doi,title:title,cite:r.cite,year:r.year})}
+ catch(e){v={t:Date.now(),ok:"fl",msg:"تعذّر الوصول إلى قواعد البيانات — تأكد من اتصال الإنترنت"}}
+ if(S.refs[i])S.refs[i].v=v;
+ RUN.delete(i);save();
+ if(!quiet)render();
+ return v;
+}
+async function verifyAll(){
+ if(V.busy){toast("عملية الفحص جارية بالفعل…");return}
+ const idx=S.refs.map((r,i)=>i).filter(i=>!S.refs[i].v);
+ if(!idx.length){toast("كل المراجع مفحوصة بالفعل");return}
+ V={busy:1,done:0,total:idx.length};render();
+ for(const i of idx){if(!S.refs[i])continue;await verifyRef(i,true);V.done++;
+  const p=document.getElementById("vprog");if(p)p.textContent="اكتمل "+V.done+" من "+V.total;await sleep(280)}
+ V.busy=0;save();if(tab===5)render();
+ toast("اكتمل فحص "+V.done+" مرجعاً");
+}
+function parseQ(q){q=String(q||"").trim();const d=q.replace(/^https?:\/\/(dx\.)?doi\.org\//i,"");
+ return /^10\.\d{4,9}\//.test(d)?{doi:d,title:""}:{doi:"",title:q}}
+function verdictHtml(v,q){
+ const bd=v.ok==="ok"?'<span class="badge ok">✓ مطابق</span>':v.ok==="wr"?'<span class="badge wr">⚠ يحتاج مراجعة</span>':'<span class="badge fl">✗ مشكلة</span>';
+ return `<div class="rule" style="border-top:0">${bd}<div>${esc(v.msg)}<small>${v.src?("المصدر: "+esc(v.src)+" · "+fmtT(v.t)):"مصدر محلي"}</small></div></div>
+ ${(v.ct||v.j)?`<div class="grid">
+  <div><label>العنوان في القاعدة</label><div class="mono">${esc(v.ct||"—")}</div></div>
+  <div><label>سنة النشر</label><div class="mono">${esc(v.cy||"—")}${v.sim!=null?" · تطابق "+Math.round(v.sim*100)+"%":""}</div></div>
+  <div><label>المجلة / الجهة</label><div class="mono">${esc(v.j||"—")}</div></div>
+  <div><label>النوع / الاقتباسات${v.oa?" / الوصول":""}</label><div class="mono">${esc(v.typ||"—")} · ${v.cited==null?"—":v.cited}${v.oa?" · "+esc(v.oa):""}</div></div>
+ </div>`:""}
+ <div class="row">
+  ${v.doi?`<a class="mini" target="_blank" rel="noopener" href="https://doi.org/${enc(v.doi)}">فتح DOI</a>`:""}
+  ${v.ct?`<a class="mini" target="_blank" rel="noopener" href="https://scholar.google.com/scholar?q=${enc(v.ct)}">Google Scholar</a>
+  <a class="mini" target="_blank" rel="noopener" href="https://pubpeer.com/search?q=${enc(v.ct)}">PubPeer</a>`:""}
+  ${v.ct?`<a class="mini" target="_blank" rel="noopener" href="https://www.scimagojr.com/journalsearch.php?q=${enc(v.j||v.ct)}">Scimago (تصنيف المجلة)</a>`:""}
+ </div>`;
+}
+
+/* ===== التحقق ===== */
+function validate(){
+ const R=[],add=(s,t,d)=>R.push({s:s,t:t,d:d||""}),p=S.p,y=num(p.minY);
+ const miss=[["العنوان",p.title],["القطاع",p.sector],["المستقل",p.iv],["التابع",p.dv]].filter(x=>!String(x[1]||"").trim()).map(x=>x[0]);
+ add(miss.length?"fl":"ok","اكتمال ملف المشروع",miss.length?"ناقص: "+miss.join("، "):"");
+ const axes=["iv","dv"].concat(String(p.med||"").trim()?["med"]:[]).concat(["both"]);
+ axes.forEach(a=>{const n=S.studies.filter(x=>x.axis===a).length,t=num(p.target);
+  add(n>=t?"ok":(a==="both"&&n===0?"fl":"wr"),"دراسات محور "+AX[a],n+" من "+t+(a==="both"&&n===0?" – هذا المحور أقوى مصدر لتحديد الفجوة":""))});
+ const old=S.studies.filter(x=>x.year&&num(x.year)<y);
+ add(old.length?"fl":"ok","دراسات أقدم من "+y,old.length?old.map(x=>x.author||"بلا اسم").join("، "):"");
+ const inc=S.studies.filter(x=>SF.some(f=>!String(x[f[0]]||"").trim()));
+ add(inc.length?"wr":"ok","اكتمال بطاقات الدراسات (13 عنصراً)",inc.length?inc.length+" بطاقة ناقصة":"");
+ const ny=S.studies.filter(x=>!num(x.year));
+ add(ny.length?"wr":"ok","دراسات بلا سنة نشر",ny.length?ny.length+" بطاقة":"");
+ const noTyp=S.studies.filter(x=>!x.typ);
+ add(noTyp.length?"wr":"ok","تصنيف مصدر الدراسات",noTyp.length?noTyp.length+" بطاقة بلا نوع مصدر (مجلة محكّمة / رسالة دكتوراة / مؤتمر)":"");
+ const dis=S.studies.filter(x=>x.typ==="d").length;
+ add(dis?"ok":"wr","الاعتماد على رسائل دكتوراة سابقة",dis?dis+" رسالة دكتوراة ضمن الدراسات السابقة":"لم تُصنّف أي رسالة دكتوراة — أضفها من تبويب الدراسات السابقة");
+ const dS=new Set(),dupS=[];
+ S.studies.forEach(x=>{const k=((x.author||"")+"|"+(x.year||"")+"|"+String(x.title||"").slice(0,25)).replace(/\s+/g," ").trim().toLowerCase();
+  if(!x.author&&!x.title)return;if(dS.has(k))dupS.push(x.author||String(x.title).slice(0,30));else dS.add(k)});
+ add(dupS.length?"wr":"ok","دراسات مكررة",dupS.length?dupS.join("، "):"");
+ const dR=new Set(),dupR=[];
+ S.refs.forEach(r=>{const d=String(r.doi||"").trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//,""),c=String(r.cite||"").trim().replace(/\s+/g," ").toLowerCase();
+  if(!d&&!c)return;const k=d?"d:"+d:"c:"+c;
+  if(dR.has(k))dupR.push(String(r.cite||"بلا توثيق").slice(0,38));else dR.add(k)});
+ add(dupR.length?"fl":"ok","مراجع مكررة",dupR.length?dupR.join("، "):"");
+ const badD=S.refs.filter(r=>{const d=String(r.doi||"").trim();return d&&!/^https?:\/\//i.test(d)&&!/^10\.\d{4,9}\//.test(d)});
+ add(badD.length?"wr":"ok","صيغة DOI",badD.length?badD.length+" مرجع بنمط غير قياسي (المتوقع 10.xxxx/...)":"");
+ const oldA=S.refs.filter(r=>r.year&&num(r.year)<y&&r.cat==="A");
+ add(oldA.length?"fl":"ok","مراجع الفئة (أ) الأقدم من "+y,oldA.length?oldA.length+" مرجع – انقلها للفئة (ب) مع تبرير":"");
+ const nj=S.refs.filter(r=>r.year&&num(r.year)<y&&r.cat==="B"&&!String(r.just||"").trim());
+ add(nj.length?"fl":"ok","تبرير المراجع التأسيسية الأقدم",nj.length?nj.length+" مرجع بلا تبرير":"");
+ const nd=S.refs.filter(r=>!String(r.doi||"").trim()),np=S.refs.filter(r=>r.cat==="A"&&!r.peer);
+ add(nd.length?"wr":"ok","مراجع بلا DOI",nd.length?nd.length+" مرجع":"");
+ add(np.length?"wr":"ok","دراسات (أ) غير محكّمة",np.length?np.length+" مرجع":"");
+ const noTtl=S.refs.filter(r=>r.cat==="A"&&!String(r.ttl||"").trim());
+ add(noTtl.length?"wr":"ok","عنوان مستقل لمراجع الفئة (أ)",noTtl.length?noTtl.length+" مرجع بلا عنوان مستقل (يُصعّب فحصه آلياً)":"");
+ const unv=S.refs.filter(r=>!r.v&&(doiOf(r)||String(r.ttl||"").trim()||String(r.cite||"").trim()));
+ add(unv.length?"wr":"ok","الفحص المباشر للمراجع",unv.length?unv.length+" مرجع لم يُفحص عبر Crossref/OpenAlex — تبويب: فحص المراجع":"");
+ const badv=S.refs.filter(r=>r.v&&(r.v.ok==="fl"||r.v.ret));
+ add(badv.length?"fl":"ok","نتائج فحص المراجع",badv.length?badv.map(r=>(r.v.ret?"مسحوب: ":"تعارض: ")+String(r.cite||r.ttl||"").slice(0,32)).join("، "):"");
+ add(S.sr.length?"ok":"wr","توثيق استراتيجية البحث",S.sr.length?S.sr.length+" عملية بحث موثّقة — جاهزة للتصدير في فصل المنهجية":"لم تُوثّق القواعد والاستعلامات والتواريخ (تبويب: البحث الأكاديمي)");
+ add(S.mx.length?"ok":"wr","مصفوفة الاتساق",S.mx.length?S.mx.length+" صف":"لم تُدخل أي صف");
+ const q=S.mx.filter(m=>String(m.q||"").trim());
+ const a1=q.filter(m=>!String(m.obj||"").trim()),b1=q.filter(m=>m.qt!=="d"&&!String(m.hyp||"").trim()),
+ c1=q.filter(m=>m.qt!=="d"&&!(String(m.inst||"").trim()&&String(m.test||"").trim())),
+ gp=S.mx.filter(m=>!String(m.gap||"").trim()),
+ nr=q.filter(m=>!String(m.res||"").trim()||!String(m.rec||"").trim());
+ add(a1.length?"fl":"ok","كل سؤال له هدف",a1.length?a1.length+" سؤال بلا هدف":"");
+ add(b1.length?"fl":"ok","كل سؤال اختباري له فرض",b1.length?b1.length+" سؤال بلا فرض":"");
+ add(c1.length?"wr":"ok","الفرض مرتبط بأداة واختبار",c1.length?c1.length+" صف ناقص":"");
+ add(gp.length?"wr":"ok","ربط الصفوف بالفجوة",gp.length?gp.length+" صف بلا فجوة":"");
+ add(nr.length?"wr":"ok","اكتمال النتيجة والتوصية",nr.length?nr.length+" صف ناقص":"");
+ return R;
+}
+function progress(){let d=0,t=0;CH.forEach((c,i)=>c[1].forEach((s,j)=>{t++;d+=(S.sec[i+"-"+j]||{}).st===2?1:0}));return[d,t]}
+
+/* ===== التصدير ===== */
+function dl(name,content,type){const a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([content],{type:type}));a.download=name;
+ document.body.appendChild(a);a.click();a.remove();P().lastExp=Date.now();save()}
+function wordDoc(title,body){return '\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;direction:rtl;text-align:right}h2{color:#2f5fe0}h3{color:#16307f}table{border-collapse:collapse;width:100%;margin-bottom:14px}th,td{border:1px solid #8a94a6;padding:5px 7px;font-size:10.5pt;text-align:right;vertical-align:top}th{background:#e9eeff}</style></head><body dir="rtl"><h2>'+esc(title)+'</h2><p>أُنشئ بواسطة «مكتب الرسالة v3» – '+fmtT(Date.now())+'</p>'+body+'</body></html>'}
+function exportWord(name,title,body){dl(name,wordDoc(title,body),"application/msword;charset=utf-8");toast("تم تصدير "+name)}
+function exportCsv(name,rows){dl(name,"\ufeff"+rows.map(r=>r.map(c=>'"'+String(c==null?"":c).replace(/"/g,'""').replace(/\r?\n/g," ")+'"').join(",")).join("\r\n"),"text/csv;charset=utf-8");toast("تم تصدير "+name)}
+function exportRows(name,header,rows){exportCsv(name,[header].concat(rows))}
+function studiesTable(l){return "<table><tr><th>#</th><th>المحور</th><th>نوع المصدر</th>"+SF.map(f=>"<th>"+f[1]+"</th>").join("")+"<th>المجلة/الجهة</th><th>DOI</th><th>التصنيف</th><th>قاعدة البيانات</th><th>المنهج</th></tr>"+l.map((x,i)=>"<tr><td>"+(i+1)+"</td><td>"+(AX[x.axis]||"")+"</td><td>"+(TYPN[x.typ]||"")+"</td>"+SF.map(f=>"<td>"+esc(x[f[0]])+"</td>").join("")+"<td>"+esc(x.jr)+"</td><td>"+esc(x.doi)+"</td><td>"+esc(x.qu)+"</td><td>"+esc(x.db)+"</td><td>"+esc(x.meth)+"</td></tr>").join("")+"</table>"}
+const VERST=r=>{const v=r.v;return !v?"لم يُفحص":v.ret?"مسحوب":v.ok==="ok"?"مطابق":v.ok==="wr"?"مراجعة":"تعارض"};
+function refsBody(l){return "<table><tr><th>#</th><th>الفئة</th><th>التوثيق (APA 7)</th><th>العنوان</th><th>المؤلفون</th><th>المجلة/الجهة</th><th>السنة</th><th>اللغة</th><th>DOI/رابط</th><th>محكّم</th><th>حالة الفحص</th><th>تبرير</th></tr>"+l.map((x,i)=>"<tr><td>"+(i+1)+"</td><td>"+({A:"أ",B:"ب",C:"ج"}[x.cat]||"")+"</td><td>"+esc(x.cite)+"</td><td>"+esc(x.ttl)+"</td><td>"+esc(x.aut)+"</td><td>"+esc(x.jr)+"</td><td>"+esc(x.year)+"</td><td>"+(x.lang==="ar"?"عربي":"إنجليزي")+"</td><td>"+esc(x.doi)+"</td><td>"+(x.peer?"نعم":"-")+"</td><td>"+VERST(x)+"</td><td>"+esc(x.just)+"</td></tr>").join("")+"</table>"}
+function mxBody(l){return "<table><tr><th>#</th><th>النوع</th>"+MF.map(f=>"<th>"+f[1]+"</th>").join("")+"</tr>"+l.map((x,i)=>"<tr><td>"+(i+1)+"</td><td>"+(x.qt==="d"?"وصفي":"اختباري")+"</td>"+MF.map(f=>"<td>"+esc(x[f[0]])+"</td>").join("")+"</tr>").join("")+"</table>"}
+function structBody(){return CH.map((c,i)=>"<h3>"+esc(c[0])+"</h3><table><tr><th>القسم</th><th>الحالة</th><th>ملاحظات</th></tr>"+c[1].map((s,j)=>{const o=S.sec[i+"-"+j]||{};return "<tr><td>"+esc(s)+"</td><td>"+(ST[num(o.st)]||ST[0])+"</td><td>"+esc(o.note)+"</td></tr>"}).join("")+"</table>").join("")}
+function srBody(){return "<table><tr><th>#</th><th>قاعدة البيانات</th><th>التاريخ</th><th>نص الاستعلام</th><th>السنوات</th><th>عدد النتائج</th><th>ملاحظات</th></tr>"+S.sr.map((x,i)=>"<tr><td>"+(i+1)+"</td><td>"+esc(x.db)+"</td><td>"+esc(x.date)+"</td><td>"+esc(x.q)+"</td><td>"+esc((x.ylo||"")+(x.ylo||x.yhi?"–":"")+(x.yhi||""))+"</td><td>"+esc(x.n)+"</td><td>"+esc(x.note)+"</td></tr>").join("")+"</table>"}
+function verBody(){return "<table><tr><th>#</th><th>المرجع (APA)</th><th>الحالة</th><th>النتيجة</th><th>DOI</th><th>المجلة/الجهة</th><th>آخر فحص</th></tr>"+S.refs.map((r,i)=>"<tr><td>"+(i+1)+"</td><td>"+esc(r.cite||r.ttl||"")+"</td><td>"+VERST(r)+"</td><td>"+esc(r.v?r.v.msg:"—")+"</td><td>"+esc(doiOf(r)||r.doi||"")+"</td><td>"+esc(r.v?r.v.j:"")+"</td><td>"+(r.v?fmtT(r.v.t):"")+"</td></tr>").join("")+"</table>"}
+
+/* ===== اللقطات ===== */
+function snapshot(label){const pr=P();
+ pr.snaps.unshift({t:Date.now(),label:label||"لقطة يدوية",d:cl({p:pr.p,sec:pr.sec,studies:pr.studies,refs:pr.refs,mx:pr.mx,sr:pr.sr})});
+ if(pr.snaps.length>5)pr.snaps.length=5;save();render();toast("حُفظت لقطة كاملة للمشروع")}
+
+/* ===== العروض ===== */
+function vSummary(){
+ const R=validate(),n=k=>R.filter(r=>r.s===k).length,pr=progress(),d=pr[0],t=pr[1];
+ const refs=S.refs,st=S.studies,a=refs.filter(r=>r.cat==="A"),peer=a.filter(r=>r.peer).length,ar=refs.filter(r=>r.lang==="ar").length;
+ const doneCards=st.filter(x=>SF.every(f=>String(x[f[0]]||"").trim())).length;
+ const dis=st.filter(x=>x.typ==="d").length;
+ const verDone=refs.filter(r=>r.v&&r.v.ok==="ok").length,ret=refs.filter(r=>r.v&&r.v.ret).length;
+ const yrs={};st.forEach(x=>{const yy=num(x.year);if(yy)yrs[yy]=(yrs[yy]||0)+1});
+ const yk=Object.keys(yrs).sort();
+ return `<div class="ledger"><div class="ok"><b>${n("ok")}</b>نجاح</div><div class="wr"><b>${n("wr")}</b>تنبيه</div><div class="fl"><b>${n("fl")}</b>نقص</div></div>
+ <div class="card"><h3>تقدم الأقسام: ${d} من ${t}</h3><div class="bar"><i style="width:${t?Math.round(d/t*100):0}%"></i></div></div>
+ <div class="card"><h2>مدخل سريع</h2><p class="hint">انتقل مباشرة إلى أدوات البحث والتحقق الأكاديمي.</p>
+ <div class="row"><button class="btn" data-tab="10">🤖 المولّد الآلي</button>
+ <button class="btn" data-tab="5">🔎 فحص المراجع</button>
+ <button class="btn" data-tab="6">🔍 البحث الأكاديمي</button>
+ <button class="btn sec" data-tab="3">📚 الدراسات السابقة</button>
+ <button class="btn sec" data-tab="4">🔗 سجل المراجع</button></div></div>
+ <div class="card"><h3>إحصاءات سريعة</h3><div class="count">
+ <span>دراسات: ${st.length}</span><span>بطاقات مكتملة: ${doneCards}/${st.length}</span><span>رسائل دكتوراة: ${dis}</span>
+ <span>مراجع: ${refs.length}</span><span>فئة (أ): ${a.length}</span>
+ <span>محكّم: ${peer}${a.length?" ("+Math.round(peer/a.length*100)+"%)":""}</span>
+ <span>عربي: ${ar} / إنجليزي: ${refs.length-ar}</span>
+ <span>مراجع مفحوصة: ${verDone}</span><span>مسحوبة: ${ret}</span>
+ <span>صفوف المصفوفة: ${S.mx.length}</span><span>سجلات البحث: ${S.sr.length}</span></div>
+ ${yk.length?`<p class="hint" style="margin:0">سنوات الدراسات: ${yk.map(k=>k+" ×"+yrs[k]).join("، ")}</p>`:""}</div>
+ <div class="card"><h2>لوحة التحقق</h2><p class="hint">تُحدَّث تلقائياً مع كل تعديل. ابدأ بحالات «نقص» ثم «تنبيه».</p>
+ ${R.slice().sort((x,z)=>"fl wr ok".indexOf(x.s)-"fl wr ok".indexOf(z.s)).map(r=>`<div class="rule"><span class="badge ${r.s}">${LBL[r.s]}</span><div>${esc(r.t)}${r.d?`<small>${esc(r.d)}</small>`:""}</div></div>`).join("")}</div>`;
+}
+
+function fld(l,i,k,lab,type,v){
+ const a=`data-l="${l}" data-i="${i}" data-k="${k}"`;
+ const it=type==="t"?`<textarea ${a}>${esc(v)}</textarea>`:`<input ${a}${type==="n"?' type="number" inputmode="numeric"':type==="d"?' type="date"':""} value="${esc(v)}">`;
+ return `<label>${lab}</label>${it}`}
+function selF(l,i,k,lab,opts,v){return `<label>${lab}</label><select data-l="${l}" data-i="${i}" data-k="${k}">${opts.map(o=>`<option value="${o[0]}" ${v===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select>`}
+
+function vProfile(){const p=S.p,f=(k,l,t)=>fld("p","",k,l,t,p[k]);
+ return `<div class="card"><h2>ملف المشروع</h2>
+ <p class="hint">كل قواعد التحقق تعتمد على هذه البيانات. اسم المشروع يميّزه في قائمة المشاريع أعلى الصفحة.<br>أُنشئ: ${fmtT(P().created)} · آخر تعديل: ${P().updated?fmtT(P().updated):"—"}</p>
+ <label>اسم المشروع (للتمييز في القائمة)</label><input data-l="meta" data-k="name" value="${esc(P().name)}">
+ <div class="grid">
+ ${f("title","عنوان الرسالة")}${f("sector","القطاع / مجال التطبيق")}${f("iv","المتغير المستقل")}${f("dv","المتغير التابع")}${f("med","المتغير الوسيط (اختياري)")}
+ <div><label>نوع الدرجة</label><select data-l="p" data-i="" data-k="deg">${["DBA","PhD"].map(x=>`<option ${p.deg===x?"selected":""}>${x}</option>`).join("")}</select></div>
+ ${f("minY","أقدم سنة نشر مسموحة","n")}${f("target","الحد الأدنى المستهدف لكل محور","n")}</div></div>`}
+
+function vStruct(){
+ return `<div class="card"><h2>متتبع الهيكل</h2><p class="hint">حدّث حالة كل قسم وأضف ملاحظات المشرف أو اللجنة، وصدّر الهيكل لإرفاقه بتقارير التقدم.</p>
+ <div class="row"><button class="btn sec" id="expStruct">تصدير الهيكل (Word)</button></div></div>`+
+ CH.map((c,i)=>{const dn=c[1].filter((s,j)=>num((S.sec[i+"-"+j]||{}).st)===2).length,tot=c[1].length;
+  return `<div class="card"><h3>${esc(c[0])} <span class="badge ${dn===tot?"ok":dn?"wr":"fl"}">${dn}/${tot}</span></h3>`+
+  c[1].map((s,j)=>{const k=i+"-"+j,o=S.sec[k]||{};
+   return `<div class="sec-row"><div>${esc(s)}</div><select data-l="sec" data-i="${k}" data-k="st" aria-label="حالة ${esc(s)}">${ST.map((x,n2)=>`<option value="${n2}" ${num(o.st)===n2?"selected":""}>${x}</option>`).join("")}</select>
+   <textarea data-l="sec" data-i="${k}" data-k="note" placeholder="ملاحظات المشرف" aria-label="ملاحظات ${esc(s)}">${esc(o.note)}</textarea></div>`}).join("")+"</div>"}).join("")}
+
+function counts(){const a=["iv","dv"].concat(String(S.p.med||"").trim()?["med"]:[]).concat(["both"]);
+ return `<div class="count">${a.map(k=>`<span>${AX[k]}: ${S.studies.filter(x=>x.axis===k).length}/${num(S.p.target)}</span>`).join("")}</div>`}
+
+function stFiltered(){return S.studies.map((x,i)=>[x,i]).filter(([x])=>{
+ if(F.stAx&&x.axis!==F.stAx)return false;
+ if(F.stQ){const hay=Object.keys(x).map(k=>x[k]).join(" ").toLowerCase();if(!hay.includes(F.stQ.toLowerCase()))return false}
+ return true})}
+function studyLinks(x){const ti=String(x.title||"").trim(),raw=String(x.doi||"").trim();
+ const d=raw.replace(/^https?:\/\/(dx\.)?doi\.org\//i,""),isDoi=/^10\.\d{4,9}\//.test(d);
+ if(!ti&&!raw)return "";
+ return `<div class="row">${ti?`<a class="mini" target="_blank" rel="noopener" href="https://scholar.google.com/scholar?q=${enc(ti)}">🔎 بحث في Scholar</a>
+ <a class="mini" target="_blank" rel="noopener" href="https://search.crossref.org/?q=${enc(ti)}">Crossref</a>
+ <a class="mini" target="_blank" rel="noopener" href="https://www.google.com/search?q=${enc('"'+ti+'"')}">Google</a>`:""}
+ ${isDoi?`<a class="mini" target="_blank" rel="noopener" href="https://doi.org/${enc(d)}">DOI</a>`:(safeUrl(raw)?`<a class="mini" target="_blank" rel="noopener" href="${esc(safeUrl(raw))}">رابط الدراسة</a>`:"")}</div>`}
+function studiesHtml(){const l=stFiltered();
+ if(!S.studies.length)return `<div class="empty">لا توجد دراسات بعد. أضف أول بطاقة من الأعلى.</div>`;
+ if(!l.length)return `<div class="empty">لا نتائج مطابقة للبحث.</div>`;
+ return l.map(([x,i])=>{const open=!!uiOpen["studies"+i];
+  const warn=x.year&&num(x.year)<num(S.p.minY)?`<p><span class="badge fl">سنة النشر أقدم من ${esc(S.p.minY)}</span></p>`:"";
+  const miss=SF.filter(f=>!String(x[f[0]]||"").trim()).length;
+  return `<div class="card"><div class="row"><h3 style="margin:0;flex:1">${esc(x.author||x.title||"بلا اسم")} ${x.typ?`<span class="badge ok">${TYPN[x.typ]||"مصدر"}</span>`:""} ${miss?`<span class="badge wr">ناقص ${miss}</span>`:`<span class="badge ok">مكتملة</span>`}</h3>
+  <button class="btn sec" data-tog="studies${i}">${open?"إغلاق":"فتح"}</button>
+  <button class="btn sec" data-dup="studies" data-i="${i}">تكرار</button>
+  <button class="btn del" data-del="studies" data-i="${i}">حذف</button></div>
+  ${studyLinks(x)}
+  ${open?warn+`<div class="grid">${selF("studies",i,"axis","المحور",Object.keys(AX).map(k=>[k,AX[k]]),x.axis)}${selF("studies",i,"typ","نوع المصدر",TYPOPT,x.typ||"")}
+  ${SF.map(f=>fld("studies",i,f[0],f[1],f[2],x[f[0]])).join("")}
+  ${fld("studies",i,"jr","اسم المجلة / الجهة الناشرة","",x.jr)}${fld("studies",i,"doi","DOI أو الرابط","",x.doi)}
+  ${fld("studies",i,"qu","التصنيف (Q1–Q4 / JCR / Scopus)","",x.qu)}${fld("studies",i,"db","قاعدة البيانات التي وُجدت فيها","",x.db)}
+  ${fld("studies",i,"meth","المنهج / التصميم","",x.meth)}</div>`:""}</div>`}).join("")}
+function vStudies(){
+ return `<div class="card"><h2>قاعدة الدراسات السابقة</h2><p class="hint">بطاقة لكل دراسة بالعناصر الثلاثة عشر، من مصدرك الأصلي. صنّف «نوع المصدر» (مجلة محكّمة / رسالة دكتوراة / مؤتمر) واستخدم أزرار البحث للوصول إلى المصدر وتوثيقه. التصدير يشمل نتائج البحث والتصفية الحالية.</p>
+ ${counts()}
+ <div class="row">
+  <input id="stQ" placeholder="بحث في كل حقول البطاقات…" value="${esc(F.stQ)}" style="flex:1;min-width:180px">
+  <select id="stAx" style="width:auto"><option value="">كل المحاور</option>${Object.keys(AX).map(k=>`<option value="${k}" ${F.stAx===k?"selected":""}>${AX[k]}</option>`).join("")}</select>
+  <button class="btn" data-add="studies">إضافة دراسة</button>
+  <button class="btn sec" id="expStW">Word</button><button class="btn sec" id="expStC">Excel/CSV</button>
+ </div></div><div id="list-studies">${studiesHtml()}</div>`}
+
+function dupRefIdx(){const seen=new Map(),dups=new Set();
+ S.refs.forEach((r,i)=>{const d=String(r.doi||"").trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//,""),c=String(r.cite||"").trim().replace(/\s+/g," ").toLowerCase();
+  if(!d&&!c)return;const k=d?"d:"+d:"c:"+c;
+  if(seen.has(k)){dups.add(i);dups.add(seen.get(k))}else seen.set(k,i)});return dups}
+function rfFiltered(){return S.refs.map((x,i)=>[x,i]).filter(([x])=>{
+ if(F.rfCat&&x.cat!==F.rfCat)return false;
+ if(F.rfQ){const hay=[x.cite,x.doi,x.just,x.ttl,x.aut,x.jr].join(" ").toLowerCase();if(!hay.includes(F.rfQ.toLowerCase()))return false}
+ return true})}
+function refLinks(x,i){const doi=doiOf(x),raw=String(x.doi||"").trim(),ti=String(x.ttl||x.cite||"").trim();
+ return `<div class="row">
+ ${doi?`<a class="mini" target="_blank" rel="noopener" href="https://doi.org/${enc(doi)}">DOI</a>`:(safeUrl(raw)?`<a class="mini" target="_blank" rel="noopener" href="${esc(safeUrl(raw))}">الرابط</a>`:"")}
+ ${ti?`<a class="mini" target="_blank" rel="noopener" href="https://scholar.google.com/scholar?q=${enc(ti)}">Scholar</a>
+ <a class="mini" target="_blank" rel="noopener" href="https://search.crossref.org/?q=${enc(ti)}">Crossref</a>`:""}
+ ${x.jr?`<a class="mini" target="_blank" rel="noopener" href="https://www.scimagojr.com/journalsearch.php?q=${enc(x.jr)}">تصنيف المجلة (Scimago)</a>`:""}
+ <button class="mini" data-ver="${i}">🔎 تحقق</button></div>`}
+function refsHtml(){const dups=dupRefIdx(),l=rfFiltered();
+ if(!S.refs.length)return `<div class="empty">لا مراجع بعد. أضف أول مرجع من الأعلى.</div>`;
+ if(!l.length)return `<div class="empty">لا نتائج مطابقة للبحث.</div>`;
+ return l.map(([x,i])=>{const open=!!uiOpen["refs"+i],y=num(x.year),b=[];
+  const v=x.v;if(v)b.push(v.ret?'<span class="badge fl">⛔ مسحوب</span>':v.ok==="ok"?'<span class="badge ok">✓ متحقق</span>':v.ok==="wr"?'<span class="badge wr">⚠ مراجعة</span>':'<span class="badge fl">✗ تعارض</span>');else if(RUN.has(i))b.push('<span class="badge wr">⟳ جارٍ</span>');
+  if(dups.has(i))b.push('<span class="badge fl">مكرر</span>');
+  if(y&&y<num(S.p.minY)&&x.cat!=="C")b.push(`<span class="badge wr">أقدم من ${esc(S.p.minY)}</span>`);
+  if(x.cat==="A"&&!x.peer)b.push('<span class="badge wr">غير محكّم</span>');
+  const dd=String(x.doi||"").trim()&&!/^https?:\/\//i.test(x.doi)&&!/^10\.\d{4,9}\//.test(x.doi);
+  if(dd)b.push('<span class="badge wr">DOI غير قياسي</span>');
+  return `<div class="card"><div class="row"><h3 style="margin:0;flex:1">${esc(x.cite||"بلا توثيق")} ${b.join(" ")}</h3>
+  <button class="btn sec" data-tog="refs${i}">${open?"إغلاق":"فتح"}</button>
+  <button class="btn sec" data-dup="refs" data-i="${i}">تكرار</button>
+  <button class="btn del" data-del="refs" data-i="${i}">حذف</button></div>
+  ${refLinks(x,i)}
+  ${open?`<div class="grid">${fld("refs",i,"cite","التوثيق (APA 7)","t",x.cite)}
+  ${fld("refs",i,"ttl","عنوان المرجع (للفحص التلقائي)","",x.ttl)}${fld("refs",i,"aut","المؤلفون","",x.aut)}
+  ${fld("refs",i,"year","سنة النشر","n",x.year)}${fld("refs",i,"jr","المجلة / الجهة الناشرة","",x.jr)}
+  ${selF("refs",i,"cat","الفئة",[["A","أ: دراسة حديثة"],["B","ب: تأسيسي"],["C","ج: سياقي"]],x.cat)}${selF("refs",i,"lang","اللغة",[["ar","عربي"],["en","إنجليزي"]],x.lang)}
+  ${fld("refs",i,"doi","DOI أو الرابط","",x.doi)}
+  <div><label>محكّم</label><label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin:0"><input type="checkbox" data-l="refs" data-i="${i}" data-k="peer" ${x.peer?"checked":""} style="width:auto"> مُحكَّم (Peer-reviewed)</label></div></div>
+  ${fld("refs",i,"just","تبرير استخدام مرجع أقدم (إن لزم)","t",x.just)}
+  ${v?`<div class="rule"><span class="badge ${v.ret||v.ok==="fl"?"fl":v.ok}">${VERST(x)}</span><div>${esc(v.msg)}<small>${v.j?"المجلة/الجهة: "+esc(v.j)+" · ":""}آخر فحص: ${fmtT(v.t)}</small></div></div>`:""}`:""}</div>`}).join("")}
+function vRefs(){
+ return `<div class="card"><h2>سجل المراجع</h2><p class="hint">صنّف كل مرجع: (أ) دراسة حديثة محكّمة، (ب) تأسيسي بتبرير، (ج) سياقي. تظهر شارات التحقق والتحذير مباشرة على كل بطاقة. استخدم زر «تحقق» لفحص المرجع عبر الإنترنت.</p>
+ <div class="row">
+  <input id="rfQ" placeholder="بحث في التوثيق/العنوان/المؤلفين/DOI/المجلة…" value="${esc(F.rfQ)}" style="flex:1;min-width:180px">
+  <select id="rfCat" style="width:auto"><option value="">كل الفئات</option>
+  <option value="A" ${F.rfCat==="A"?"selected":""}>أ: حديثة</option>
+  <option value="B" ${F.rfCat==="B"?"selected":""}>ب: تأسيسي</option>
+  <option value="C" ${F.rfCat==="C"?"selected":""}>ج: سياقي</option></select>
+  <button class="btn" data-add="refs">إضافة مرجع</button>
+  <button class="btn sec" id="expRfW">Word</button><button class="btn sec" id="expRfC">Excel/CSV</button>
+ </div>
+ <div class="row"><button class="btn" id="adddoi">＋ إضافة مرجع تلقائياً عبر DOI (Crossref)</button>
+ <span class="hint" style="margin:0">جلب بيانات السجل الرسمي وتوليد التوثيق تلقائياً.</span></div></div><div id="list-refs">${refsHtml()}</div>`}
+
+const MANUAL=`<a class="mini" target="_blank" rel="noopener" href="https://doi.org/">🔗 doi.org</a>
+<a class="mini" target="_blank" rel="noopener" href="https://search.crossref.org/">Crossref</a>
+<a class="mini" target="_blank" rel="noopener" href="https://openalex.org/">OpenAlex</a>
+<a class="mini" target="_blank" rel="noopener" href="https://scholar.google.com/">Google Scholar</a>
+<a class="mini" target="_blank" rel="noopener" href="https://www.scopus.com/">Scopus</a>
+<a class="mini" target="_blank" rel="noopener" href="https://www.webofscience.com/wos/woscc/basic-search">Web of Science</a>
+<a class="mini" target="_blank" rel="noopener" href="https://orcid.org/orcid-search/search">ORCID (الباحثون)</a>
+<a class="mini" target="_blank" rel="noopener" href="https://www.scimagojr.com/">Scimago (تصنيف المجلات)</a>
+<a class="mini" target="_blank" rel="noopener" href="https://beallslist.net/">Beall's (المجلات المُنصّبة)</a>
+<a class="mini" target="_blank" rel="noopener" href="https://doaj.org/">DOAJ</a>
+<a class="mini" target="_blank" rel="noopener" href="https://pubpeer.com/">PubPeer</a>
+<a class="mini" target="_blank" rel="noopener" href="https://retractionwatch.com/">Retraction Watch</a>`;
+function vVerify(){
+ const refs=S.refs,wd=refs.filter(r=>doiOf(r)).length,ok=refs.filter(r=>r.v&&r.v.ok==="ok").length,
+ ret=refs.filter(r=>r.v&&r.v.ret).length,bad=refs.filter(r=>r.v&&r.v.ok==="fl"&&!r.v.ret).length,
+ un=refs.filter(r=>!r.v).length;
+ const rows=refs.length?refs.map((r,i)=>{const v=r.v,run=RUN.has(i)&&!v;
+  let bd=v?(v.ret?'<span class="badge fl">⛔ مسحوب</span>':v.ok==="ok"?'<span class="badge ok">✓ متحقق</span>':v.ok==="wr"?'<span class="badge wr">⚠ مراجعة</span>':'<span class="badge fl">✗ تعارض</span>'):(run?'<span class="badge wr">⟳ جارٍ</span>':'<span class="badge wr">لم يُفحص</span>');
+  const doi=doiOf(r),raw=String(r.doi||"").trim();
+  return `<div class="rule">${bd}<div>${esc(r.cite||r.ttl||"بلا توثيق")}<small>${v?esc(v.msg)+(v.j?" · "+esc(v.j):"")+(v.cited!=null?" · اقتباسات: "+v.cited:""):"اضغط «فحص» لجلب بيانات Crossref/OpenAlex"}</small></div>
+  <div class="row">${run?`<button class="mini" disabled>…</button>`:`<button class="mini" data-ver="${i}">🔎 فحص</button>`}
+  ${doi?`<a class="mini" target="_blank" rel="noopener" href="https://doi.org/${enc(doi)}">DOI</a>`:(safeUrl(raw)?`<a class="mini" target="_blank" rel="noopener" href="${esc(safeUrl(raw))}">الرابط</a>`:"")}
+  ${v&&v.sugg?`<button class="mini" data-adddoi="${i}">اعتماد DOI المقترح</button>`:""}
+  ${v&&v.ct?`<button class="mini" data-applyv="${i}">اعتماد بيانات السجل</button>`:""}</div></div>`}).join(""):`<div class="empty">لا مراجع بعد. أضفها من تبويب «سجل المراجع».</div>`;
+ return `<div class="ledger">
+  <div class="wr"><b>${refs.length}</b>إجمالي المراجع</div>
+  <div class="wr"><b>${wd}</b>لديها DOI</div>
+  <div class="ok"><b>${ok}</b>تم التحقق</div>
+  <div class="fl"><b>${bad+ret}</b>مشكلات (منها ${ret} مسحوب)</div></div>
+ <div class="card"><h2>فاحص سريع (DOI أو عنوان)</h2>
+ <p class="hint">الصق <b>DOI</b> (مثال: 10.1016/j.chb.2023.109412) أو <b>عنوان أي بحث</b>. يجلب النظام بيانات <b>Crossref</b> و<b>OpenAlex</b> ويقارن العنوان والسنة، ويتحقق من <b>سحب النشر</b>، ويقترح الـ DOI الصحيح.</p>
+ <div class="row"><input id="vq" placeholder="DOI أو عنوان المرجع…" style="flex:1;min-width:220px"><button class="btn" id="vgo">🔎 تحقّق الآن</button></div>
+ <div id="vout"></div>
+ <div class="gh">أدوات تحقق يدوية</div><div class="row">${MANUAL}</div></div>
+ <div class="card"><h2>حالة التحقق لكل مرجع</h2>
+ <p class="hint">الفحص آلي بالكامل عبر واجهات Crossref وOpenAlex الرسمية.${un?` <b>${un}</b> مرجع بانتظار الفحص.`:""}</p>
+ <div class="row"><button class="btn" id="vall">⚡ فحص كل المراجع غير المفحوصة</button><span class="hint" style="margin:0" id="vprog">${V.busy?"اكتمل "+V.done+" من "+V.total:""}</span><button class="btn sec" id="expVW">تصدير تقرير الفحص (Word)</button></div>
+ ${rows}</div>`;
+}
+
+/* ===== البحث الأكاديمي ===== */
+function Q(){let q=String(F.sq||"").trim().replace(/\s+/g," ");if(!q)return"";
+ if(F.stype==="thesis")q+=hasAr(q)?" رسالة دكتوراه":" dissertation OR \"phd thesis\"";
+ if(F.stype==="article")q+=hasAr(q)?" مقالة محكّمة":" \"peer-reviewed\" article";
+ return q}
+function yrP(){return (F.sylo?"&as_ylo="+enc(F.sylo):"")+(F.syhi?"&as_yhi="+enc(F.syhi):"")}
+function lrP(){return F.slang==="ar"?"&lr=lang_ar":F.slang==="en"?"&lr=lang_en":""}
+function cdrP(){const a=/^\d{4}$/.test(F.sylo)?F.sylo:"",b=/^\d{4}$/.test(F.syhi)?F.syhi:"";
+ if(!a&&!b)return"";return "&tbs=cdr:1"+(a?",cd_min:1/1/"+a:"")+(b?",cd_max:12/31/"+b:"")}
+function siteQ(dom){return "https://www.google.com/search?q="+enc("site:"+dom+" "+Q())+cdrP()}
+const GROUPS=[
+{n:"📘 رسائل الدكتوراه والدراسات العليا",items:[
+ {n:"Google Scholar",s:"أوسع فهرس أكاديمي، ويتضمن الرسائل والفضاءات الجامعية",u:()=>"https://scholar.google.com/scholar?hl="+(F.slang==="ar"?"ar":"en")+"&q="+enc(Q())+yrP()},
+ {n:"Google — ملفات PDF",s:"نتائج جوجل المقيّدة بملفات PDF (الرسائل غالباً PDF)",u:()=>"https://www.google.com/search?q="+enc(Q()+" filetype:pdf")+lrP()+cdrP()},
+ {n:"Google — site:proquest.com",s:"صفحات الرسائل داخل قاعدة ProQuest العالمية",u:()=>siteQ("proquest.com")},
+ {n:"Google — site:ethos.bl.uk",s:"صفحات رسائل EThOS البريطانية",u:()=>siteQ("ethos.bl.uk")},
+ {n:"ProQuest Dissertations",s:"أكبر قاعدة رسائل دكتوراة عالمياً (يتطلب اشتراكاً) — تُفتح الصفحة ويُنسخ الاستعلام",u:"https://www.proquest.com/",manual:1},
+ {n:"EBSCO Open Dissertations",s:"أطروحات مفتوحة من جامعات متعددة",u:"https://opendissertations.org/",manual:1},
+ {n:"EThOS — British Library",s:"فهرس رسائل الدكتوراه البريطانية",u:"https://ethos.bl.uk/",manual:1},
+ {n:"CORE",s:"أرشيف أبحاث مفتوح يضم رسائل وأطروحات جامعية",u:()=>"https://core.ac.uk/search?q="+enc(Q())},
+ {n:"BASE — Bielefeld",s:"محرك بحث أوروبي للأبحاث والرسائل العلمية",u:()=>"https://www.base-search.net/Search/Results?lookfor="+enc(Q())},
+ {n:"WorldCat",s:"فهرس عالمي للكتب والرسائل لدى جامعات العالم",u:()=>"https://search.worldcat.org/search?q="+enc(Q())},
+ {n:"OpenAIRE",s:"بوابة الأبحاث المفتوحة الأوروبية",u:()=>"https://explore.openaire.eu/search?keyword="+enc(Q())}
+]},
+{n:"🔬 مجلات ودوريات محكّمة",items:[
+ {n:"ScienceDirect",s:"Elsevier — آلاف المجلات المحكّمة",u:()=>"https://www.sciencedirect.com/search?qs="+enc(Q())},
+ {n:"Springer Link",s:"مجلات وكتب Springer Nature",u:()=>"https://link.springer.com/search?query="+enc(Q())},
+ {n:"Wiley Online Library",s:"مجلات Wiley المحكّمة",u:()=>"https://onlinelibrary.wiley.com/action/doSearch?AllField="+enc(Q())},
+ {n:"SAGE Journals",s:"العلوم الاجتماعية والإدارة والتعليم",u:()=>"https://journals.sagepub.com/action/doSearch?AllField="+enc(Q())},
+ {n:"Taylor & Francis",s:"مجلات T&F المحكّمة",u:()=>"https://www.tandfonline.com/action/doSearch?AllField="+enc(Q())},
+ {n:"Emerald Insight",s:"إدارة الأعمال وعلوم المكتبات",u:()=>"https://www.emerald.com/insight/search?q="+enc(Q())},
+ {n:"MDPI",s:"دوريات مفتوحة الوصول المحكّمة",u:()=>"https://www.mdpi.com/search?q="+enc(Q())},
+ {n:"JSTOR",s:"أرشيف أكاديمي كبير للمجلات والرسائل",u:()=>"https://www.jstor.org/action/doBasicSearch?Query="+enc(Q())},
+ {n:"SSRN",s:"أبحاث أولية في الإدارة والاقتصاد",u:()=>"https://papers.ssrn.com/sol3/results.cfm?txtKey_Words="+enc(Q())},
+ {n:"PubMed",s:"الأدب الصحي والطبي",u:()=>"https://pubmed.ncbi.nlm.nih.gov/?term="+enc(Q())},
+ {n:"IEEE Xplore",s:"الهندسة والحوسبة والإلكترونيات",u:()=>"https://ieeexplore.ieee.org/search/searchresult.jsp?queryText="+enc(Q())},
+ {n:"ERIC",s:"علوم التربية والتعليم",u:()=>"https://eric.ed.gov/?q="+enc(Q())},
+ {n:"arXiv",s:"أبحاث ما قبل النشر (رياضيات/حوسبة/فيزياء)",u:()=>"https://arxiv.org/search/?query="+enc(Q())+"&searchtype=all"}
+]},
+{n:"🗄️ قواعد بيانات وفهارس محكّمة",items:[
+ {n:"Scopus",s:"أكبر قاعدة اقتباسات علمية (يتطلب اشتراكاً)",u:()=>"https://www.scopus.com/results/results.uri?st1="+enc(Q())+"&src=s&sot=b&sdt=b"},
+ {n:"Web of Science",s:"Clarivate — تُفتح صفحة البحث ويُنسخ الاستعلام",u:"https://www.webofscience.com/wos/woscc/basic-search",manual:1},
+ {n:"Semantic Scholar",s:"محرك بحث ذكي من Allen AI",u:()=>"https://www.semanticscholar.org/search?q="+enc(Q())},
+ {n:"Crossref",s:"سجل عالمي لبيانات النشر وأرقام DOI",u:()=>"https://search.crossref.org/?q="+enc(Q())},
+ {n:"OpenAlex",s:"فهرس مفتوح للأعمال العلمية والاقتباسات",u:"https://openalex.org/",manual:1},
+ {n:"DOAJ",s:"دليل المجلات المفتوحة المحكّمة",u:"https://doaj.org/",manual:1}
+]},
+{n:"🌍 مصادر عربية",items:[
+ {n:"شمعة SHAMAA",s:"المركز العربي لتوثيق المعارف — رسائل وبحوث عربية",u:"https://www.shamaa.org/",manual:1},
+ {n:"شمعة عبر Google",s:"site:shamaa.org داخل جوجل",u:()=>siteQ("shamaa.org")},
+ {n:"دار المنظومة",s:"منصة المجلات والرسائل العربية",u:"https://www.mandumah.com/",manual:1},
+ {n:"المنظومة عبر Google",s:"site:mandumah.com داخل جوجل",u:()=>siteQ("mandumah.com")},
+ {n:"مستودع الملك سعود",s:"رسائل الدراسات العليا — جامعة الملك سعود",u:"https://era.ksu.edu.sa/",manual:1},
+ {n:"جوجل بالعربية",s:"بحث عربي مقيّد بـ«رسالة دكتوراه»",u:()=>"https://www.google.com/search?q="+enc(Q()+(hasAr(Q())?" رسالة دكتوراه":" dissertation"))+"&lr=lang_ar"+cdrP()}
+]}];
+function destHtml(){return GROUPS.map((g,gi)=>`<div class="gh">${g.n}</div><div class="dests">${g.items.map((d,ii)=>`
+ <div class="dest"><b>${esc(d.n)}</b><small>${esc(d.s)}</small>
+ <div class="row" style="margin:2px 0 0"><button class="mini" data-go="${gi}:${ii}">${d.manual?"فتح + نسخ الاستعلام ↗":"فتح البحث ↗"}</button></div></div>`).join("")}</div>`).join("")}
+function srRow(x,i){return `<div class="rule"><span class="badge wr">${esc(x.db||"أخرى")}</span>
+ <div>${esc(x.q||"بلا استعلام")}<small>${esc(x.date||"")}${(x.ylo||x.yhi)?" · السنوات: "+esc(x.ylo||"…")+"–"+esc(x.yhi||"…"):""}${x.n?" · النتائج: "+esc(x.n):""}${x.note?" · "+esc(x.note):""}</small></div>
+ <button class="btn del" data-srdel="${i}">حذف</button></div>`}
+function vSearch(){
+ const rows=S.sr.length?S.sr.map(srRow).join(""):`<div class="empty">لم تُسجَّل أي عملية بحث بعد. سجّل كل عملية لتُخرِجها في فصل المنهجية.</div>`;
+ return `<div class="card"><h2>مولّد الاستعلام الأكاديمي</h2>
+ <p class="hint">اكتب كلمات الموضوع/المتغيرات، ثم افتح أي قاعدة بيانات لعرض النتائج جاهزة. اختر «رسائل دكتوراة» لتوسيع مصادر الدراسات السابقة المحكّمة المرتبطة بموضوعك.</p>
+ <label>كلمات البحث / عبارة الاستعلام</label><textarea id="sq" placeholder="مثال: التحول الرقمي وأداء الموظفين في القطاع المالي">${esc(F.sq)}</textarea>
+ <div class="grid">
+  <div><label>نوع المصدر المطلوب</label><select id="stype">${[["all","الكل"],["thesis","رسائل دكتوراة (Theses)"],["article","مقالات محكّمة فقط"]].map(o=>`<option value="${o[0]}" ${F.stype===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>
+  <div><label>لغة النتائج</label><select id="slang">${[["all","الكل"],["ar","عربي"],["en","إنجليزي"]].map(o=>`<option value="${o[0]}" ${F.slang===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>
+  <div><label>من سنة</label><input id="sylo" type="number" inputmode="numeric" placeholder="2020" value="${esc(F.sylo)}"></div>
+  <div><label>إلى سنة</label><input id="syhi" type="number" inputmode="numeric" placeholder="2026" value="${esc(F.syhi)}"></div>
+ </div>
+ <div class="row"><button class="btn" id="copq">📋 نسخ الاستعلام المركّب</button><span class="hint" style="margin:0">الاستعلام: <b id="qprev">${esc(Q()||"—")}</b></span></div></div>
+ <div class="card"><h2>بوّابات البحث المعتمدة</h2><p class="hint">افتح أي قاعدة لبدء البحث مباشرة. القواعد التي تتطلب اشتراكاً تُفتح صفحتها ويُنسخ الاستعلام لتلصقه بنفسك.</p>${destHtml()}</div>
+ <div class="card"><h2>سجل استراتيجية البحث</h2><p class="hint">وثّق كل عملية بحث (القاعدة، الاستعلام، التاريخ، السنوات، عدد النتائج) — يُستخرج مباشرة إلى فصل المنهجية.</p>
+ <div class="grid">
+  <div><label>قاعدة البيانات / المحرك</label><select id="lgdb">${SRDB.map(d=>`<option>${esc(d)}</option>`).join("")}</select></div>
+  <div><label>تاريخ البحث</label><input type="date" id="lgdt" value="${new Date().toISOString().slice(0,10)}"></div>
+  <div><label>عدد النتائج</label><input type="number" inputmode="numeric" id="lgn"></div>
+  <div><label>من سنة</label><input type="number" inputmode="numeric" id="lgy1"></div>
+  <div><label>إلى سنة</label><input type="number" inputmode="numeric" id="lgy2"></div>
+ </div>
+ <label>نص الاستعلام الكامل</label><textarea id="lgq" placeholder="العبارة كما أدخلتها في القاعدة"></textarea>
+ <label>ملاحظات (الفلاتر، نوع البحث، ملاحظات المشرف…)</label><textarea id="lgnt"></textarea>
+ <div class="row"><button class="btn" id="lgadd">＋ تسجيل عملية بحث</button>
+ <button class="btn sec" id="expSrW">Word</button><button class="btn sec" id="expSrC">CSV</button></div>
+ <div style="margin-top:10px">${rows}</div></div>`;
+}
+
+function vMx(){return `<div class="card"><h2>مصفوفة الاتساق</h2><p class="hint">اربط الفجوة بالسؤال والهدف والفرض والأداة والاختبار والنتيجة والتوصية.</p>
+ <div class="row"><button class="btn" data-add="mx">إضافة صف</button>
+ <button class="btn sec" id="expMxW">Word</button><button class="btn sec" id="expMxC">Excel/CSV</button></div></div>
+ <div id="list-mx">${S.mx.length?S.mx.map((x,i)=>{const open=!!uiOpen["mx"+i],miss=MF.filter(f=>!String(x[f[0]]||"").trim()).length;
+  return `<div class="card"><div class="row"><h3 style="margin:0;flex:1">${esc(x.q||"صف بلا سؤال")} <span class="badge ${x.qt==="d"?"wr":"ok"}">${x.qt==="d"?"وصفي":"اختباري"}</span>${miss?`<span class="badge wr">ناقص ${miss}</span>`:""}</h3>
+  <button class="btn sec" data-tog="mx${i}">${open?"إغلاق":"فتح"}</button>
+  <button class="btn sec" data-dup="mx" data-i="${i}">تكرار</button>
+  <button class="btn del" data-del="mx" data-i="${i}">حذف</button></div>
+  ${open?`<div class="grid">${selF("mx",i,"qt","نوع السؤال",[["t","اختباري (له فرض)"],["d","وصفي (بلا فرض)"]],x.qt)}${MF.map(f=>fld("mx",i,f[0],f[1],f[2],x[f[0]])).join("")}</div>`:""}</div>`}).join(""):`<div class="empty">لا صفوف بعد. ابدأ بالزر أعلاه.</div>`}</div>`}
+
+function vTrash(){const tyN={studies:"دراسة",refs:"مرجع",mx:"صف مصفوفة"};
+ return `<div class="card"><h2>سلة المحذوفات</h2><p class="hint">العناصر المحذوفة من هذا المشروع (حتى 50 عنصراً). استعيدها متى شئت.</p>
+ ${S.trash.length?`<div class="row"><button class="btn del" id="tempty">تفريغ السلة</button></div>`+
+ S.trash.map((x,i)=>{const nm=x.it.author||x.it.title||x.it.cite||x.it.q||"بلا عنوان";
+  return `<div class="rule"><span class="badge wr">${tyN[x.ty]||"عنصر"}</span><div>${esc(nm)}<small>حُذف: ${fmtT(x.t)}</small></div>
+  <button class="btn sec" data-res="${i}">استعادة</button><button class="btn del" data-purge="${i}">حذف نهائي</button></div>`}).join("")
+ :`<div class="empty">السلة فارغة.</div>`}</div>`}
+
+function vBackup(){const pr=P();
+ const snaps=pr.snaps.length?pr.snaps.map((s,i)=>`<div class="rule"><span class="badge ok">لقطة</span><div>${esc(s.label)}<small>${fmtT(s.t)}</small></div>
+  <button class="btn sec" data-sres="${i}">استعادة</button><button class="btn del" data-sdel="${i}">حذف</button></div>`).join("")
+ :`<div class="empty">لا لقطات بعد.</div>`;
+ return `<div class="card"><h2>نسخة المشروع الحالي</h2><p class="hint">البيانات محفوظة في هذا المتصفح فقط. آخر تصدير: ${pr.lastExp?fmtT(pr.lastExp):"لم يحدث بعد"}.</p>
+ <div class="row"><button class="btn" id="expp">تصدير المشروع (JSON)</button>
+ <label class="btn sec" style="margin:0;display:inline-block;color:var(--acc)">استيراد مشروع<input type="file" id="impp" accept=".json" hidden></label>
+ <button class="btn sec" id="expall">تصدير كل المشاريع</button></div>
+ <p class="hint">لا تولّد هذه الأداة دراسات أو مراجع تلقائياً: أدخل كل مرجع من مصدره. (يمكن جلب بيانات DOI الرسمية عبر فحص المراجع.)</p></div>
+ <div class="card"><h2>لقطات محفوظة (حتى 5)</h2><p class="hint">اللقطة صورة كاملة لبيانات المشروع في لحظة. الاستعادة تحفظ وضعك الحالي تلقائياً كأحدث لقطة قبل الاستبدال.</p>
+ <div class="row"><button class="btn" id="snown">حفظ لقطة الآن</button></div>${snaps}</div>
+ <div class="card"><h2>منطقة الخطر</h2><div class="row"><button class="btn del" id="rst">مسح كل المشاريع والبيانات</button></div></div>`}
+
+const TABS=["📊 الملخص والتحقق","🧾 ملف المشروع","🗂️ متتبع الهيكل","📚 الدراسات السابقة","🔗 سجل المراجع","🔎 فحص المراجع","🔍 البحث الأكاديمي","🧩 مصفوفة الاتساق","🗑️ سلة المحذوفات","💾 النسخ الاحتياطي","🤖 المولّد الآلي"];
+const VIEWS=[vSummary,vProfile,vStruct,vStudies,vRefs,vVerify,vSearch,vMx,vTrash,vBackup,vAuto];
+function render(){
+ document.getElementById("psel").innerHTML=Object.values(DB.projects).map(p=>`<option value="${p.id}" ${p.id===DB.cur?"selected":""}>${esc(p.name)}</option>`).join("");
+ document.getElementById("nav").innerHTML=TABS.map((t,i)=>`<button role="tab" aria-selected="${i===tab}" data-tab="${i}">${t}</button>`).join("");
+ document.getElementById("main").innerHTML=VIEWS[tab]();}
+
+/* ===== الأحداث ===== */
+document.addEventListener("click",e=>{
+ const t=e.target.closest("button,[data-tab]");if(!t)return;
+ if(t.dataset.tab!==undefined){tab=+t.dataset.tab;render();scrollTo(0,0)}
+ else if(t.dataset.add){const l=t.dataset.add,o=l==="studies"?{axis:"iv",typ:"j"}:l==="refs"?{cat:"A",lang:"en"}:{qt:"t"};
+  S[l].unshift(o);
+  const n={};Object.keys(uiOpen).forEach(k=>{if(k.startsWith(l)){const i=+k.slice(l.length);n[l+(i+1)]=uiOpen[k]}else n[k]=uiOpen[k]});
+  n[l+"0"]=true;uiOpen=n;save();render()}
+ else if(t.dataset.dup){const l=t.dataset.dup,i=+t.dataset.i;S[l].splice(i+1,0,cl(S[l][i]));
+  const n={};Object.keys(uiOpen).forEach(k=>{if(k.startsWith(l)){const j=+k.slice(l.length);n[l+(j>i?j+1:j)]=uiOpen[k]}else n[k]=uiOpen[k]});
+  n[l+(i+1)]=true;uiOpen=n;save();render();toast("أُنشئت نسخة للتعديل")}
+ else if(t.dataset.tog){uiOpen[t.dataset.tog]=!uiOpen[t.dataset.tog];render()}
+ else if(t.dataset.del){if(confirm("نقل العنصر إلى سلة المحذوفات؟")){const l=t.dataset.del,i=+t.dataset.i;
+  P().trash.unshift({ty:l,it:cl(S[l][i]),t:Date.now()});if(P().trash.length>50)P().trash.length=50;
+  S[l].splice(i,1);uiOpen={};save();render();toast("نُقل إلى السلة ويمكن استعادته")}}
+ else if(t.dataset.res!==undefined){const it=S.trash.splice(+t.dataset.res,1)[0];S[it.ty].unshift(cl(it.it));uiOpen={};save();render();toast("تمت الاستعادة")}
+ else if(t.dataset.purge!==undefined){if(confirm("حذف نهائي لا يمكن التراجع عنه؟")){S.trash.splice(+t.dataset.purge,1);save();render()}}
+ else if(t.dataset.ver!==undefined){verifyRef(+t.dataset.ver)}
+ else if(t.dataset.srdel!==undefined){S.sr.splice(+t.dataset.srdel,1);save();render()}
+ else if(t.dataset.adddoi!==undefined){const r=S.refs[+t.dataset.adddoi];if(r&&r.v&&r.v.sugg){r.doi=r.v.sugg;delete r.v.sugg;save();render();toast("اعتُمد الـ DOI المقترح — أعد الفحص للتأكيد")}}
+ else if(t.dataset.applyv!==undefined){const r=S.refs[+t.dataset.applyv],v=r&&r.v;if(v){if(v.ct)r.ttl=v.ct;if(v.cy)r.year=v.cy;if(v.j)r.jr=v.j;if(v.aut)r.aut=v.aut;if(v.sugg)r.doi=v.sugg;if(v.oa==="closed"||!r.peer)r.peer=true;save();render();toast("اعتُمدت بيانات السجل الرسمي على المرجع")}}
+ else if(t.dataset.go){const p=t.dataset.go.split(":"),d=GROUPS[+p[0]]&&GROUPS[+p[0]].items[+p[1]];if(!d)return;
+  const q=Q();
+  if(!q&&!d.manual){toast("اكتب كلمات البحث أولاً",1);return}
+  const url=typeof d.u==="function"?d.u():d.u;
+  if(d.manual&&q)copy(q);
+  window.open(url,"_blank","noopener");
+  if(d.manual&&q)toast("نُسخ الاستعلام — الصقه في صفحة القاعدة بعد فتحها")}
+ else if(t.id==="tempty"){if(confirm("تفريغ السلة نهائياً؟")){S.trash=[];save();render()}}
+ else if(t.id==="expp"){dl("thesis-desk-project.json",JSON.stringify(Object.assign(cl(P()),{snaps:[]}),null,1),"application/json");toast("تم تصدير المشروع")}
+ else if(t.id==="expall"){dl("thesis-desk-all.json",JSON.stringify(DB,null,1),"application/json");toast("تم تصدير كل المشاريع")}
+ else if(t.id==="snown"){snapshot("")}
+ else if(t.id==="adddoi"){addByDoi()}
+ else if(t.id==="vgo"){const q=document.getElementById("vq").value,o=document.getElementById("vout");
+  o.innerHTML='<p class="hint">جارٍ الفحص عبر Crossref وOpenAlex…</p>';
+  coreCheck(Object.assign(parseQ(q),{year:0})).then(v=>{o.innerHTML=verdictHtml(v,q)})
+   .catch(()=>{o.innerHTML='<div class="rule" style="border-top:0"><span class="badge fl">تعذّر</span><div>تعذّر الوصول إلى قواعد البيانات — تأكد من اتصال الإنترنت.</div></div>'})}
+ else if(t.id==="vall"){verifyAll()}
+ else if(t.id==="copq"){const q=Q();if(!q)return toast("اكتب كلمات البحث أولاً",1);copy(q)?toast("نُسخ الاستعلام"):toast("تعذّر النسخ — حدّد النص يدوياً",1)}
+ else if(t.id==="lgadd"){const g=id=>document.getElementById(id),q=g("lgq").value.trim();
+  if(!q)return toast("اكتب نص الاستعلام أولاً",1);
+  S.sr.unshift({db:g("lgdb").value,date:g("lgdt").value||new Date().toISOString().slice(0,10),q:q,ylo:g("lgy1").value,yhi:g("lgy2").value,n:g("lgn").value,note:g("lgnt").value});
+  save();render();toast("سُجّلت عملية البحث")}
+ else if(t.dataset.sres!==undefined){const i=+t.dataset.sres,pr=P(),snap=pr.snaps[i];
+  if(!snap||!confirm("استعادة هذه اللقطة؟ سيُحفظ وضعك الحالي تلقائياً قبل الاستبدال."))return;
+  pr.snaps.unshift({t:Date.now(),label:"قبل الاستعادة",d:cl({p:pr.p,sec:pr.sec,studies:pr.studies,refs:pr.refs,mx:pr.mx,sr:pr.sr})});
+  if(pr.snaps.length>5)pr.snaps.length=5;
+  Object.assign(pr,cl(snap.d));save();render();toast("تمت الاستعادة")}
+ else if(t.dataset.sdel!==undefined){P().snaps.splice(+t.dataset.sdel,1);save();render()}
+ else if(t.id==="newp"){const n=prompt("اسم المشروع الجديد:","رسالة جديدة");if(n&&n.trim()){
+  const pr=blankP(n.trim());DB.projects[pr.id]=pr;DB.cur=pr.id;S=P();uiOpen={};F.stQ="";F.stAx="";F.rfQ="";F.rfCat="";tab=0;save();render();toast("أُنشئ مشروع جديد")}}
+ else if(t.id==="renp"){const n=prompt("الاسم الجديد:",P().name);if(n&&n.trim()){P().name=n.trim();save();render()}}
+ else if(t.id==="delp"){if(confirm('حذف المشروع "'+P().name+'" نهائياً؟ تأكد من تصدير نسخة أولاً.')){
+  delete DB.projects[DB.cur];const k=Object.keys(DB.projects);
+  if(k.length)DB.cur=k[0];else{const pr=blankP();DB.projects[pr.id]=pr;DB.cur=pr.id}
+  S=P();uiOpen={};tab=0;save();render()}}
+ else if(t.id==="thm"){thm=thm===""?"light":thm==="light"?"dark":"";try{localStorage.setItem(TKEY,thm)}catch(e){}applyTheme()}
+ else if(t.id==="expStruct"){exportWord("structure.doc","هيكل الرسالة وتقدمها – "+P().name,structBody())}
+ else if(t.id==="expStW"){const l=stFiltered().map(a=>a[0]);l.length?exportWord("studies.doc","جدول الدراسات السابقة – "+P().name,studiesTable(l)):toast("لا توجد دراسات للتصدير",1)}
+ else if(t.id==="expStC"){const l=stFiltered().map(a=>a[0]);if(!l.length)return toast("لا توجد دراسات للتصدير",1);
+  const head=["#","المحور","نوع المصدر"].concat(SF.map(f=>f[1])).concat(["المجلة/الجهة","DOI","التصنيف","قاعدة البيانات","المنهج"]);
+  exportRows("studies.csv",head,l.map((x,i)=>[i+1,AX[x.axis]||"",TYPN[x.typ]||""].concat(SF.map(f=>x[f[0]]||"")).concat([x.jr||"",x.doi||"",x.qu||"",x.db||"",x.meth||""])))}
+ else if(t.id==="expRfW"){const l=rfFiltered().map(a=>a[0]);l.length?exportWord("references.doc","سجل المراجع – "+P().name,refsBody(l)):toast("لا مراجع للتصدير",1)}
+ else if(t.id==="expRfC"){const l=rfFiltered().map(a=>a[0]);if(!l.length)return toast("لا مراجع للتصدير",1);
+  exportRows("references.csv",["#","الفئة","التوثيق","العنوان","المؤلفون","المجلة/الجهة","السنة","اللغة","DOI/رابط","محكّم","حالة الفحص","تبرير"],
+   l.map((x,i)=>[i+1,{A:"أ",B:"ب",C:"ج"}[x.cat]||"",x.cite||"",x.ttl||"",x.aut||"",x.jr||"",x.year||"",x.lang==="ar"?"عربي":"إنجليزي",x.doi||"",x.peer?"نعم":"",VERST(x),x.just||""]))}
+ else if(t.id==="expMxW"){S.mx.length?exportWord("matrix.doc","مصفوفة الاتساق – "+P().name,mxBody(S.mx)):toast("المصفوفة فارغة",1)}
+ else if(t.id==="expMxC"){if(!S.mx.length)return toast("المصفوفة فارغة",1);
+  exportRows("matrix.csv",["#","نوع السؤال"].concat(MF.map(f=>f[1])),S.mx.map((x,i)=>[i+1,x.qt==="d"?"وصفي":"اختباري"].concat(MF.map(f=>x[f[0]]||""))))}
+ else if(t.id==="expSrW"){S.sr.length?exportWord("search-strategy.doc","استراتيجية البحث الأكاديمي – "+P().name,srBody()):toast("سجل البحث فارغ",1)}
+ else if(t.id==="expSrC"){if(!S.sr.length)return toast("سجل البحث فارغ",1);
+  exportRows("search-strategy.csv",["#","قاعدة البيانات","التاريخ","الاستعلام","من سنة","إلى سنة","عدد النتائج","ملاحظات"],S.sr.map((x,i)=>[i+1,x.db||"",x.date||"",x.q||"",x.ylo||"",x.yhi||"",x.n||"",x.note||""]))}
+ else if(t.id==="expVW"){S.refs.length?exportWord("references-verification.doc","تقرير فحص صحة المراجع – "+P().name,verBody()):toast("لا مراجع للتصدير",1)}
+ else if(t.id==="aggo"){runAuto()}
+ else if(t.id==="agall"){agallAct()}
+ else if(t.dataset.agone!==undefined){agoneAct(+t.dataset.agone)}
+ else if(t.id==="agadd"){agAdd()}
+ else if(t.id==="rexpW"){(S.studies.length||S.refs.length)?exportWord("literature-review.doc","تقرير المراجعة الأدبية – "+P().name,litBody()+bibBody()):toast("لا توجد دراسات أو مراجع بعد",1)}
+ else if(t.id==="rexpM"){dl("literature-review.md","\ufeff# تقرير المراجعة الأدبية – "+P().name+"\n\n"+litMdBody()+bibMd(),"text/markdown;charset=utf-8");toast("تم تصدير literature-review.md")}
+ else if(t.id==="skW"){exportWord("thesis-skeleton.doc","هيكل الرسالة – "+P().name,skelBody())}
+ else if(t.id==="skM"){dl("thesis-skeleton.md","\ufeff"+skelMd(),"text/markdown;charset=utf-8");toast("تم تصدير thesis-skeleton.md")}
+ else if(t.id==="elq1"){elqAct(elq1)}
+ else if(t.id==="elq2"){elqAct(elq2)}
+ else if(t.id==="elq3"){elqAct(elq3)}
+ else if(t.id==="elgo"){llmGo()}
+ else if(t.id==="elsave"){llmSave()}
+ else if(t.id==="rst"){if(confirm("سيُمسح كل شيء من هذا المتصفح (كل المشاريع). هل صدّرت نسخة؟")){try{localStorage.removeItem(KEY)}catch(e){}location.reload()}}
+});
+document.addEventListener("input",e=>{const id=e.target.id;
+ if(id==="stQ"){F.stQ=e.target.value;clearTimeout(window._d1);window._d1=setTimeout(()=>{const el=document.getElementById("list-studies");if(el)el.innerHTML=studiesHtml()},250)}
+ else if(id==="rfQ"){F.rfQ=e.target.value;clearTimeout(window._d2);window._d2=setTimeout(()=>{const el=document.getElementById("list-refs");if(el)el.innerHTML=refsHtml()},250)}
+ else if(id==="sq"||id==="stype"||id==="slang"||id==="sylo"||id==="syhi"){F[id]=e.target.value;
+  const q=document.getElementById("qprev");if(q)q.textContent=Q()||"—"}
+ else if(id==="agx"||id==="agto"||id==="agn"||id==="elpr"){F[id]=e.target.value}});
+document.addEventListener("change",e=>{
+ const t=e.target;
+ if(t.id==="psel"){DB.cur=t.value;S=P();uiOpen={};F.stQ="";F.stAx="";F.rfQ="";F.rfCat="";save();render();return}
+ if(t.id==="stAx"){F.stAx=t.value;const el=document.getElementById("list-studies");if(el)el.innerHTML=studiesHtml();return}
+ if(t.id==="rfCat"){F.rfCat=t.value;const el=document.getElementById("list-refs");if(el)el.innerHTML=refsHtml();return}
+ if(t.dataset.agsel!==undefined){const o=AG[+t.dataset.agsel];if(o){if(t.checked)AGS[o.doi]=1;else delete AGS[o.doi]}agcnt();return}
+ if(t.id==="apib"||t.id==="apik"||t.id==="apim"){apiRead();return}
+ const l=t.dataset.l;if(!l)return;
+ const v=t.type==="checkbox"?t.checked:t.value,i=t.dataset.i,k=t.dataset.k;
+ if(l==="meta"){P().name=v;save();render();return}
+ if(l==="p")S.p[k]=v;else if(l==="sec"){S.sec[i]=S.sec[i]||{};S.sec[i][k]=v}else if(l==="studies"||l==="refs"||l==="mx")S[l][+i][k]=v;
+ save();
+ if(l!=="sec"&&["axis","year","cat","minY","target","med","qt","author","cite","q","doi","peer","lang","typ","ttl"].includes(k))render();
+});
+/* استيراد الملفات */
+document.addEventListener("change",e=>{
+ const t=e.target;
+ if(t.id!=="impp")return;
+ const f=t.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const d=JSON.parse(r.result);
+  if(d&&d.projects){if(!confirm("سيُدمج الملف مع مشاريعك (المعرّف نفسه يُستبدل). متابعة؟"))return;
+   Object.keys(d.projects).forEach(k=>{DB.projects[k]=d.projects[k]});
+   DB.cur=(d.cur&&DB.projects[d.cur])?d.cur:Object.keys(DB.projects)[0]}
+  else if(d&&d.p){const id=(d.id&&!DB.projects[d.id])?d.id:uid();
+   DB.projects[id]=Object.assign(blankP(),d,{id:id,snaps:[],trash:d.trash||[]});DB.cur=id}
+  else throw 0;
+  fixProjs(DB);S=P();uiOpen={};tab=0;save();render();toast("تم الاستيراد بنجاح")}
+ catch(x){toast("الملف غير صالح: اختر ملفًا صدّرته من هذه الأداة.",1)}};
+ r.readAsText(f);t.value=""});
+
+/* إضافة مرجع تلقائياً عبر DOI */
+async function addByDoi(){
+ const q=prompt("الصق رقم DOI (مثال: 10.1016/j.chb.2023.109412) أو عنوان البحث:");
+ if(!q||!q.trim())return;
+ const p=parseQ(q);
+ toast("جارٍ جلب بيانات السجل الرسمي…");
+ try{
+  let m=null;
+  if(p.doi){const r=await jget("https://api.crossref.org/works/"+segEnc(p.doi));m=r.message}
+  else{const r=await jget("https://api.crossref.org/works?query.bibliographic="+enc(p.title)+"&rows=3");m=r.message&&r.message.items&&r.message.items[0]}
+  if(!m)return toast("لم يُعثر على المرجع في Crossref — تحقق من الرقم/العنوان",1);
+  const au=(m.author||[]).map(a=>a.family?(a.family+", "+String(a.given||"").split(/\s+/).map(w=>w?w[0]+".":"").join(" ")):(a.name||"")).filter(Boolean).join(", ");
+  const y=crYear(m)||"";
+  const tt=(m.title&&m.title[0])||"";
+  const jr=(m["container-title"]&&m["container-title"][0])||m.publisher||"";
+  let cite=au||"?";
+  cite+=(y?" ("+y+"). ":" (بلا تاريخ). ")+tt+". ";
+  if(m["container-title"]&&m["container-title"][0])cite+=m["container-title"][0];
+  if(m.volume)cite+=", "+m.volume;if(m.issue)cite+="("+m.issue+")";if(m.page)cite+=", "+m.page;
+  cite+=". "+(m.DOI?"https://doi.org/"+m.DOI:"");
+  const lang=hasAr(tt)?"ar":"en";
+  const ok=(crYear(m)>=num(S.p.minY))?"A":"B";
+  S.refs.unshift({cat:ok,lang:lang,cite:cite.replace(/\s+/g," ").trim(),ttl:tt,aut:au,year:y,jr:jr,doi:m.DOI||p.doi,peer:true,just:"",v:{t:Date.now(),ok:"ok",msg:"✓ جُلب من السجل الرسمي في Crossref",src:"Crossref",ct:tt,cy:crYear(m),j:jr,typ:m.type,cited:m["is-referenced-by-count"],doi:m.DOI||p.doi}});
+  save();render();toast("أُضيف المرجع من Crossref"+(m.DOI?' (DOI: '+m.DOI+')':""));
+ }catch(e){toast(e&&e.http===404?"هذا الـ DOI غير موجود في Crossref":"تعذّر الجلب — تأكد من الإنترنت والصيغة",1)}
+}
+
+/* ===== المولّد الآلي: بحث آلي + فحص + تجميع + توليد نص ===== */
+let AG=[],AGS={},AGBUSY=false;
+let apiCfg={base:"https://api.openai.com/v1",key:"",model:"gpt-4o-mini"};
+try{const j=JSON.parse(localStorage.getItem("td-api")||"null");if(j&&j.base)apiCfg=Object.assign(apiCfg,j)}catch(e){}
+function saveApi(){try{localStorage.setItem("td-api",JSON.stringify(apiCfg))}catch(e){}}
+const md=s=>String(s==null?"":s);
+function abiToText(o){const idx=o&&o.abstract_inverted_index;if(!idx)return"";
+ const arr=[];Object.keys(idx).forEach(w=>{(idx[w]||[]).forEach(p=>{arr[p]=w})});
+ let s="";for(let i=0;i<arr.length;i++){const w=arr[i];if(w===undefined)continue;s+=(s?" ":"")+w;if(s.length>1500)break}
+ return s.trim()}
+function oaType(t){return t==="dissertation"?"d":(t==="article"||t==="review")?"j":t==="conference"?"c":t==="report"?"r":(t==="book"||t==="book-chapter")?"o":""}
+function oaAuth(o){return((o.authorships||[]).slice(0,20).map(a=>a.author&&a.author.display_name).filter(Boolean).join("; "))}
+function oaVenue(o){return (o.primary_location&&o.primary_location.source&&o.primary_location.source.display_name)||(o.host_venue&&o.host_venue.display_name)||""}
+function oaApa(o){const au=(o.authorships||[]).slice(0,20).map(a=>{const nm=(a.author&&a.author.display_name)||"";const p=nm.split(/[\s,]+/).filter(Boolean);let last=p.pop()||"";if(!last)return "";if(p.length)last+=", "+p.map(w=>w[0]+".").join(" ");return last}).filter(Boolean).join(", ");
+ let c=au||"?";c+=o.publication_year?" ("+o.publication_year+"). ":" (بلا تاريخ). ";
+ c+=String(o.title||o.display_name||"بلا عنوان").replace(/\s+/g," ").trim()+". ";
+ const vn=oaVenue(o);if(vn)c+=vn;
+ const b=o.biblio||{};if(b.volume)c+=", "+b.volume;if(b.issue)c+="("+b.issue+")";if(b.first_page)c+=", "+b.first_page+(b.last_page?"–"+b.last_page:"");
+ c=c.replace(/\s+,/g,",");c+="."+(o.doi?" https://doi.org/"+o.doi:"");return c.trim()}
+function agQ(){const extra=String(F.ag||"").trim();
+ const base=[extra,S.p.iv,S.p.dv,S.p.med,S.p.sector,((S.p.title||"").split(/[،,:؛]/)[0])].filter(x=>x&&String(x).trim());
+ const words=[],push=s=>String(s).replace(/[^\p{L}\p{N}\s]/gu," ").split(/\s+/).forEach(w=>{w=w.trim();if(w.length>2&&words.indexOf(w)<0)words.push(w)});
+ base.forEach(push);
+ const latin=words.filter(w=>/[A-Za-z]/.test(w)),other=words.filter(w=>!/[A-Za-z]/.test(w));
+ return latin.concat(other).slice(0,10).join(" ")}
+function agIsAr(){return hasAr(agQ())}
+function agQueries(){const cand=[],push=s=>{s=String(s==null?"":s).replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();if(s.length>1&&cand.indexOf(s)<0)cand.push(s)};
+ push(F.ag);push([S.p.iv,S.p.dv,S.p.med].filter(x=>x&&String(x).trim()).join(" "));push(String(S.p.title||"").split(/[،,:؛]/)[0]);
+ return cand.slice(0,2)}
+async function runAuto(){
+ if(AGBUSY){toast("الجلب جارٍ بالفعل…");return}
+ const qs=agQueries();if(!qs.length){toast("أدخل المتغيرات في «ملف المشروع» أو كلمات إضافية أولاً",1);return}
+ AGBUSY=true;AG=[];AGS={};
+ const w=document.getElementById("agwait");if(w)w.textContent="⏳ جارٍ البحث في OpenAlex…";
+ const from=num((document.getElementById("agfrom")||{}).value)||num(S.p.minY)||2020;
+ const to=num((document.getElementById("agto")||{}).value)||(new Date().getFullYear());
+ const n=Math.max(4,Math.min(50,num((document.getElementById("agn")||{}).value)||12));
+ const filt="from_publication_date:"+from+"-01-01,to_publication_date:"+to+"-12-31,has_doi:true";
+ const urls=[];
+ qs.forEach(q=>{const dq=q+(hasAr(q)?" رسالة دكتوراه":" dissertation");
+  urls.push("https://api.openalex.org/works?search="+enc(q)+"&per-page="+n+"&sort=relevance_score:desc&filter="+enc(filt)+"&mailto=thesis.desk@example.com");
+  urls.push("https://api.openalex.org/works?search="+enc(dq)+"&per-page="+Math.max(4,Math.ceil(n/2))+"&sort=relevance_score:desc&filter="+enc(filt+",type:dissertation")+"&mailto=thesis.desk@example.com")});
+ const res=await Promise.allSettled(urls.slice(0,6).map(u=>jget(u,16000)));
+ const seen={};
+ res.forEach(r=>{if(r.status!=="fulfilled")return;((r.value&&r.value.results)||[]).forEach(o=>{if(!o||!o.doi)return;const dd=String(o.doi).replace(/^https?:\/\/(dx\.)?doi\.org\//i,"");if(!dd)return;o.doi=dd;const k=dd.toLowerCase();if(seen[k])return;seen[k]=1;AG.push(o)})});
+ AG=AG.slice(0,40);AGBUSY=false;
+ const el=document.getElementById("aglist");
+ if(!AG.length){if(el)el.innerHTML='<div class="empty">لم يُعثر على نتائج — جرّب كلمات إنجليزية أدق أو وسّع السنوات.</div>';
+  if(w)w.textContent="لم تُعثر نتائج.";agcnt();return}
+ if(el)el.innerHTML=agHtml();
+ if(w)w.textContent="وُجدت "+AG.length+" نتيجة — علّم المناسب ثم اضغط «أضف المحدّد».";
+ agcnt()}
+function agDup(o){const d=String(o.doi||"").toLowerCase(),strip=x=>String(x||"").toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//,"");
+ return S.refs.some(r=>strip(r.doi)===d)||S.studies.some(s=>strip(s.doi)===d)}
+function agRow(o,i){const dupe=agDup(o),ab=abiToText(o),cat=oaType(o.type),src=oaVenue(o),sel=AGS[o.doi]?"checked":"";
+ return '<div class="rule"><div style="flex:0 0 34px">'+(dupe?'<span class="badge wr">موجود</span>':(o.is_retracted?'<span class="badge fl">مسحوب</span>':'<input type="checkbox" data-agsel="'+i+'" '+sel+'>'))+'</div><div>'+
+  '<b>'+esc(o.title||o.display_name||"بلا عنوان")+'</b>'+
+  '<small>'+esc(o.publication_year||"")+(oaVenue(o)?" · "+esc(oaVenue(o)):"")+(oaType(o.type)?" · "+(TYPN[oaType(o.type)]||""):"")+(o.cited_by_count!=null?" · اقتباسات: "+o.cited_by_count:"")+(o.open_access&&o.open_access.oa_status?" · وصول: "+esc(o.open_access.oa_status):"")+'</small>'+
+  (o.doi?'<div class="mono">DOI: '+esc(o.doi)+'</div>':"")+
+  (o.is_retracted?'<div class="mono">⛔ علم مسحوب (Retraction) — لن يُدرج</div>':"")+
+  (abiToText(o)?'<details><summary class="mini">عرض المستخلص</summary><div class="mono">'+esc(abiToText(o))+'</div></details>':"")+
+  '</div><div class="row">'+(o.is_retracted?"":'<button class="mini" data-agone="'+i+'">'+(AGS[o.doi]?"إلغاء التحديد":"تحديد")+'</button>')+'</div></div>'}
+function agHtml(){return AG.map((o,i)=>agRow(o,i)).join("")}
+function agcnt(){const c=document.getElementById("agcnt");if(c)c.textContent=String(Object.keys(AGS).length)}
+function agRefFrom(o){const doi=String(o.doi||"").trim(),tt=String(o.title||o.display_name||"").replace(/\s+/g," ").trim(),c0=oaType(o.type),au=oaAuth(o),vn=oaVenue(o),y=o.publication_year||"",peer=(c0==="j"||c0==="c");
+ S.studies.unshift({axis:"iv",typ:c0||"j",author:au,year:y,title:tt,goal:"",hyp:"",vars:"",field:S.p.sector||"",pop:"",sample:"",tools:"",find:"",agree:"",differ:"",jr:vn,doi:doi,qu:"",db:"OpenAlex",meth:"",ab:abiToText(o)});
+ const ref={cat:(num(y)>=num(S.p.minY)&&peer)?"A":"B",lang:hasAr(tt)?"ar":"en",cite:oaApa(o),ttl:tt,aut:au,year:y,jr:vn,doi:doi,peer:peer,just:"",v:undefined};
+ S.refs.unshift(ref);return ref}
+async function agAdd(){
+ const keys=Object.keys(AGS);if(!keys.length){toast("حدّد نتيجة واحدة على الأقل",1);return}
+ const sel=AG.filter(o=>AGS[o.doi]&&!o.is_retracted);
+ if(!sel.length){toast("لا عناصر صالحة — المسحوب يُستبعد تلقائياً",1);return}
+ const added=[];sel.forEach(o=>{try{added.push(agRefFrom(o))}catch(e){}});
+ AGS={};save();toast("أُدخلت "+added.length+" نتيجة (دراسة + مرجع) — جارٍ التمحيص الآلي…");
+ const w=document.getElementById("agwait");
+ let ok=0,wr=0,fl=0,nf=0,k=0,cap=Math.min(added.length,15);
+ for(const r of added.slice(0,15)){
+  k++;if(w)w.textContent="🩺 تمحيص "+k+" من "+cap+"…";
+  try{const v=await coreCheck({doi:doiOf(r),title:r.ttl,cite:r.cite,year:r.year});
+   if(String(v.msg||"").indexOf("اتصال")>=0){r.v=undefined;nf++}
+   else{r.v=v;if(v.ok==="ok")ok++;else if(v.ret)fl++;else wr++}}
+  catch(e){r.v=undefined;nf++}
+  save()}
+ render();
+ toast("التمحيص: "+ok+" مطابق، "+(wr+fl)+" يحتاج مراجعة"+(nf?("، "+nf+" بلا إنترنت"):"")+" — راجع تبويب «فحص المراجع»")}
+function litParts(){const order=["iv","med","dv","both"],used=order.filter(a=>S.studies.some(x=>x.axis===a));
+ S.studies.forEach(x=>{if(used.indexOf(x.axis)<0)used.push(x.axis)});
+ return used.map(a=>{const arr=S.studies.filter(x=>x.axis===a);
+  return {a:a,ar:arr.filter(x=>hasAr((x.title||"")+(x.author||""))),en:arr.filter(x=>!hasAr((x.title||"")+(x.author||"")))}})}
+function litBody(){let h="<p>عدد الدراسات المجمّعة: "+S.studies.length+" · عدد المراجع: "+S.refs.length+"</p>";
+ litParts().forEach(g=>{h+="<h3>محور "+esc(AX[g.a]||g.a)+"</h3>";
+  [["العربية",g.ar],["الأجنبية",g.en]].forEach(p=>{if(!p[1].length)return;
+   h+="<h4>"+p[0]+" ("+p[1].length+")</h4><table><tr><th>#</th><th>الباحث</th><th>السنة</th><th>العنوان</th><th>المصدر</th><th>النوع</th><th>DOI</th><th>الهدف / أبرز ما ورد</th></tr>";
+   p[1].forEach((x,i)=>{h+="<tr><td>"+(i+1)+"</td><td>"+esc(x.author)+"</td><td>"+esc(x.year)+"</td><td>"+esc(x.title)+"</td><td>"+esc(x.jr)+"</td><td>"+(TYPN[x.typ]||"")+"</td><td>"+esc(x.doi)+"</td><td>"+esc(String(x.goal||"").trim()||String(x.ab||"").slice(0,300))+"</td></tr>"});
+   h+="</table>"})});
+ if(!S.studies.length)h+="<p class=\"hint\">لا توجد دراسات سابقة بعد — استخدم «المولّد الآلي» لجلبها.</p>";
+ h+="<h3>التعليق النقدي والفجوة البحثية</h3><p>تُكتب هنا المقارنة بين الدراسات (نقاط الاتفاق والاختلاف) والفجوة التي تسوّغ الدراسة الحالية.</p>";
+ return h}
+function litMdBody(){let m="عدد الدراسات: "+S.studies.length+" · المراجع: "+S.refs.length+"\n";
+ litParts().forEach(g=>{m+="\n## محور "+(AX[g.a]||g.a)+"\n";
+  [["العربية",g.ar],["الأجنبية",g.en]].forEach(p=>{if(!p[1].length)return;m+="\n### "+p[0]+"\n";
+   p[1].forEach(x=>{m+="- **"+md(x.author||"بلا اسم")+" ("+md(x.year||"بلا سنة")+")** "+md(x.title)+". "+md(x.jr)+(x.doi?" — doi:"+md(x.doi):"")+"\n  "+(String(x.goal||"").trim()||md(String(x.ab||"").slice(0,240)))+"\n"})})});
+ m+="\n## التعليق النقدي والفجوة البحثية\n(يُكتب هنا)\n";return m}
+function bibBody(){if(!S.refs.length)return "<p class=\"hint\">لا مراجع بعد.</p>";
+ return "<h3>المراجع (APA 7)</h3><table><tr><th>#</th><th>التوثيق</th></tr>"+S.refs.map((r,i)=>"<tr><td>"+(i+1)+"</td><td>"+esc(r.cite)+"</td></tr>").join("")+"</table>"}
+function bibMd(){if(!S.refs.length)return"\n## المراجع\n(لا مراجع)\n";return "\n## المراجع (APA 7)\n"+S.refs.map((r,i)=>(i+1)+". "+md(r.cite)).join("\n")+"\n"}
+function skelBody(){let h="<h3>بيانات الدراسة</h3><table><tr><th>العنوان</th><td>"+esc(S.p.title)+"</td></tr><tr><th>القطاع</th><td>"+esc(S.p.sector)+"</td></tr><tr><th>المتغيرات</th><td>مستقل: "+esc(S.p.iv)+" / تابع: "+esc(S.p.dv)+(S.p.med?" / وسيط: "+esc(S.p.med):"")+"</td></tr></table><h3>الهيكل العام والأقسام</h3>";
+ CH.forEach((c,i)=>{h+="<h4>"+esc(c[0])+"</h4><table><tr><th>القسم</th><th>الحالة</th><th>ملاحظات</th></tr>"+c[1].map((s,j)=>{const o=S.sec[i+"-"+j]||{};return "<tr><td>"+esc(s)+"</td><td>"+(ST[num(o.st)]||ST[0])+"</td><td>"+esc(o.note)+"</td></tr>"}).join("")+"</table>"});
+ h+="<h3>الفصل الثاني: الدراسات السابقة والإطار النظري (تجميع آلي)</h3>"+litBody();
+ if(S.mx.length)h+="<h3>مصفوفة الاتساق</h3>"+mxBody(S.mx);
+ h+=bibBody();return h}
+function skelMd(){let m="# هيكل الرسالة: "+(S.p.title||P().name)+"\n\n- القطاع: "+md(S.p.sector)+"\n- المتغير المستقل: "+md(S.p.iv)+"\n- المتغير التابع: "+md(S.p.dv)+(S.p.med?"\n- المتغير الوسيط: "+md(S.p.med):"")+"\n\n## الأقسام\n";
+ CH.forEach((c,i)=>{m+="\n### "+md(c[0])+"\n";c[1].forEach((s,j)=>{const o=S.sec[i+"-"+j]||{};m+="- ["+(o.st===2?"x":" ")+"] "+md(s)+(o.note?" — "+md(o.note):"")+"\n"})});
+ m+="\n## الدراسات السابقة (تجميع آلي)\n"+litMdBody();
+ if(S.mx.length){m+="\n## مصفوفة الاتساق\n";S.mx.forEach(x=>{m+="- "+(x.qt==="d"?"وصفي":"اختباري")+" | "+md(x.q)+" → هدف: "+md(x.obj||"-")+(x.hyp?" | فرض: "+md(x.hyp):"")+"\n"})}
+ m+="\n## المراجع (APA 7)\n"+S.refs.map((r,i)=>(i+1)+". "+md(r.cite)).join("\n")+"\n";return m}
+function apiRead(){const g=id=>document.getElementById(id);const b=g("apib"),k=g("apik"),mm=g("apim");
+ if(b)apiCfg.base=b.value.trim()||apiCfg.base;if(k)apiCfg.key=k.value.trim();if(mm)apiCfg.model=mm.value.trim()||apiCfg.model;saveApi()}
+async function llmGo(){apiRead();
+ if(!apiCfg.key){toast("أدخل مفتاح API أولاً (هذه الخطوة اختيارية)",1);return}
+ const ta=document.getElementById("elpr"),prompt=(ta&&ta.value.trim())||"";
+ if(!prompt){toast("اكتب «طلب التوليد» أو اختر قالباً",1);return}
+ const out=document.getElementById("elout");if(out)out.innerHTML='<p class="hint">⏳ جارٍ التوليد… قد يستغرق دقيقة.</p>';
+ const ctx=("الدراسة: "+(S.p.title||"")+" | المستقل: "+S.p.iv+" / التابع: "+S.p.dv+(S.p.med?" / وسيط: "+S.p.med:"")).slice(0,4000)+"\n\n"+litMdBody().slice(0,5000);
+ try{const r=await (async()=>{const c=new AbortController(),tm=setTimeout(()=>c.abort(),60000);
+   try{const rr=await fetch(apiCfg.base.replace(/\/+$/,"")+"/chat/completions",{method:"POST",signal:c.signal,
+     headers:{"Content-Type":"application/json",Authorization:"Bearer "+apiCfg.key},
+     body:JSON.stringify({model:apiCfg.model,messages:[
+       {role:"system",content:"أنت مساعد أكاديمي عربي لكتابة رسالة دكتوراه. اكتب نصاً علمياً منظماً. لا تختلق مراجع أو أرقاماً أو اقتباسات؛ استخدم فقط ما في السياق، وإن نقصت البيانات فاذكر ذلك بوضوح ليراجعه الباحث."},
+       {role:"user",content:prompt+"\n\n--- سياق من مشروع الباحث ---\n"+ctx}]})});
+    if(!rr.ok){const t=await rr.text().catch(()=>"");throw new Error("HTTP "+rr.status+(t?" – "+t.slice(0,180):""))}
+    const j=await rr.json(),ch=(j.choices||[])[0];return (ch&&ch.message&&ch.message.content)?ch.message.content:"";
+   }finally{clearTimeout(tm)}})();
+  if(out)out.textContent=r;
+  save();toast("اكتمل التوليد — راجع النص وحرّره قبل الاستخدام")}
+ catch(e){if(out)out.innerHTML='<div class="rule" style="border-top:0"><span class="badge fl">خطأ</span><div>'+esc((e&&e.message)||String(e))+'</div></div>';toast("تعذّر التوليد — راجع المفتاح والرابط والموديل",1)}}
+function llmSave(){const out=document.getElementById("elout"),txt=(out&&(out.innerText||out.textContent))||"";
+ if(!txt.trim()){toast("لا يوجد ناتج لحفظه",1);return}
+ dl("academic-draft.md","\ufeff# مسودة مولّدة — "+P().name+"\n\n"+md(S.p.title)+"\n\n"+txt+"\n","text/markdown;charset=utf-8");toast("حُفظت المسودة (Markdown)")}
+function elq1(){return "اكتب مسودة «مقدمة الفصل الثاني: الإطار النظري والدراسات السابقة» للدراسة. ابدأ بمقدمة تمهيدية، ثم عرّف المتغير المستقل «"+(S.p.iv||"")+"» والمتغير التابع «"+(S.p.dv||"")+"»، ثم امهد للدراسات السابقة بعناوين فرعية مرقّمة."}
+function elq2(){return "اكتب «تعليقاً نقدياً» على الدراسات السابقة الواردة في السياق: نقاط الاتفاق، نقاط الاختلاف (المجتمع/العينة/المنهج/النتائج)، ثم الفجوة البحثية التي تسوّغ الدراسة الحالية. اعتمد فقط على الدراسات المذكورة في السياق ولا تختلق غيرها."}
+function elq3(){return "اقترح «محاور وأسئلة الاستبيان الأولية» مرتبطة بمتغيرات الدراسة: المستقل «"+(S.p.iv||"")+"»، التابع «"+(S.p.dv||"")+(S.p.med?"»، الوسيط «"+S.p.med:"")+"». استخدم مقياس ليكرت الخماسي، ورتّب الأسئلة تحت كل محور مع بيان هدف كل محور."}
+function vAuto(){
+ return `<div class="card"><h2>🤖 المولّد الآلي للمادة العلمية</h2>
+ <p class="hint">يأخذ موضوعك ومتغيراتك من «ملف المشروع»، ويبحث آلياً في فهرس <b>OpenAlex</b> العالمي (مجاني بلا مفتاح)، ثم تُعلّم ما يناسبك فيُضاف <b>كدراسات سابقة + مراجع APA</b>، ثم <b>يُفحص كل مرجع آلياً</b> عبر Crossref/OpenAlex للتأكد من صحته وعدم سحبه. بقية أجزاء التطبيق تعمل بلا إنترنت، والإنترنت اختياري للبحث والفحص.</p></div>
+ <div class="card"><h3>1) البحث الآلي وجلب الدراسات والمراجع</h3>
+ <div class="grid">
+  <div><label>كلمات إضافية (اختياري)</label><input id="agx" value="${esc(F.ag)}" placeholder="مثال: digital transformation SMEs"></div>
+  <div><label>من سنة</label><input id="agfrom" type="number" inputmode="numeric" value="${esc(S.p.minY)}"></div>
+  <div><label>إلى سنة</label><input id="agto" type="number" inputmode="numeric" value="${esc(F.agto)}" placeholder="${new Date().getFullYear()}"></div>
+  <div><label>عدد النتائج لكل دفعة</label><input id="agn" type="number" inputmode="numeric" value="${esc(F.agn||"12")}"></div>
+ </div>
+ <div class="row"><button class="btn" id="aggo">🔍 ابحث واجلب الآن</button>
+  <button class="btn sec" id="agall">تحديد الكل</button>
+  <span class="hint" id="agwait">سيُبنى الاستعلام تلقائياً من المتغيرات والقطاع والعنوان (يُفضّل إضافة كلمات إنجليزية).</span></div>
+ <p class="hint">المحدّد حالياً: <b id="agcnt">0</b> — يُستبعد المسحوب تلقائياً.</p>
+ <div id="aglist"></div>
+ <div class="row"><button class="btn" id="agadd">➕ أضف المحدّد كدراسات ومراجع (مع الفحص الآلي)</button></div></div>
+ <div class="card"><h3>2) مستندات التجميع الجاهزة</h3>
+ <p class="hint">تُبنى من الدراسات والمراجع والمصفوفة الموجودة حالياً في مشروعك.</p>
+ <div class="row">
+  <button class="btn" id="rexpW">📄 تقرير المراجعة الأدبية (Word)</button>
+  <button class="btn sec" id="rexpM">📝 تقرير المراجعة (Markdown)</button></div>
+ <div class="row">
+  <button class="btn" id="skW">📄 هيكل الرسالة الكامل (Word)</button>
+  <button class="btn sec" id="skM">📝 هيكل الرسالة (Markdown)</button></div></div>
+ <div class="card"><h3>3) مولّد النص الأكاديمي (اختياري — يتطلب مفتاح API)</h3>
+ <p class="hint">لتوليد مسوّدات نصية (مقدمة الفصل الثاني، تعليق نقدي، أسئلة استبيان أولية). تحتاج مفتاح خدمة متوافقة مع OpenAI، ويُحفظ في متصفّحك فقط. راجع الناتج وحرّره قبل الاستخدام.</p>
+ <div class="grid">
+  <div><label>رابط الواجهة Base URL</label><input id="apib" value="${esc(apiCfg.base)}"></div>
+  <div><label>الموديل</label><input id="apim" value="${esc(apiCfg.model)}"></div>
+  <div><label>المفتاح API Key</label><input id="apik" type="password" value="${esc(apiCfg.key)}" placeholder="sk-..."></div>
+ </div>
+ <div class="row">
+  <button class="mini" id="elq1">قالب: مقدمة الفصل الثاني</button>
+  <button class="mini" id="elq2">تعليق نقدي وفجوة</button>
+  <button class="mini" id="elq3">أسئلة استبيان أولية</button></div>
+ <label>طلب التوليد</label><textarea id="elpr" placeholder="اكتب ما تريده… أو اختر قالباً أعلاه">${esc(F.elpr)}</textarea>
+ <div class="row"><button class="btn" id="elgo">✨ ولّد النص</button>
+  <button class="btn sec" id="elsave">💾 حفظ المسودة (MD)</button></div>
+ <div id="elout" class="mono" contenteditable="true" style="white-space:pre-wrap;max-height:360px;overflow:auto"></div>
+ <div class="card" style="background:var(--acc2)"><b>تنبيه أخلاقي</b><p class="hint" style="margin:6px 0 0">الناتج مسودة أولية للمساعدة لا أكثر؛ راجعها وحرّرها ووثّق استخدامك وفق سياسة جامعتك.</p></div></div>`}
+function agallAct(){AG.forEach(o=>{if(!o.is_retracted)AGS[o.doi]=1});const el=document.getElementById("aglist");if(el)el.innerHTML=agHtml();agcnt()}
+function agoneAct(i){const o=AG[i];if(!o)return;if(AGS[o.doi])delete AGS[o.doi];else AGS[o.doi]=1;const el=document.getElementById("aglist");if(el)el.innerHTML=agHtml();agcnt()}
+function elqAct(fn){const e=document.getElementById("elpr");if(e){e.value=fn();F.elpr=e.value}}
+
+applyTheme();render();
