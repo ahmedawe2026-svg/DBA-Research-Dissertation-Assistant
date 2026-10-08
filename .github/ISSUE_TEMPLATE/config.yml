@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions & Discussions
+    url: https://github.com/ahmedawe2026-svg/DBA-Research-Dissertation-Assistant/discussions
+    about: Ask questions, share ideas, or show what you built with Thesis Desk.
+  - name: 🌐 Live Demo
+    url: https://ahmedawe2026-svg.github.io/DBA-Research-Dissertation-Assistant/
+    about: Try the app before opening an issue.
+  - name: 📖 User Guide
+    url: https://ahmedawe2026-svg.github.io/DBA-Research-Dissertation-Assistant/docs/guide.html
+    about: Read the full user guide.

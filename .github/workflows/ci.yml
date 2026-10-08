@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check JavaScript syntax
+        run: node --check assets/js/app.js
+
+      - name: Check required files exist
+        run: |
+          set -e
+          test -f index.html
+          test -f assets/css/style.css
+          test -f assets/js/app.js
+          test -f assets/img/logo.svg
+          test -f standalone/thesis-desk-v3.html
+          test -f docs/guide.html
+          echo "All required files are present."
+
+      - name: Check standalone build is not empty
+        run: |
+          set -e
+          lines=$(wc -l < standalone/thesis-desk-v3.html)
+          echo "standalone lines: $lines"
+          if [ "$lines" -lt 100 ]; then
+            echo "::error::standalone build looks incomplete"
+            exit 1
+          fi
+
+      - name: Check for leftover merge conflict markers
+        run: |
+          if grep -RnE '^(<<<<<<<|=======|>>>>>>>)' --include='*.html' --include='*.js' --include='*.css' .; then
+            echo "::error::Merge conflict markers found"
+            exit 1
+          fi
+          echo "No conflict markers found."

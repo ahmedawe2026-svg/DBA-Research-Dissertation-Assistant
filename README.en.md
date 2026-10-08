@@ -144,5 +144,25 @@ This app is an **assistant tool** for collecting, verifying, and formatting — 
 
 ---
 
+## 🤝 Contributing
+
+Contributions from everyone are welcome! 🎉 If you're a developer who wants to improve the project:
+
+- Read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
+- Look for issues labelled **`good first issue`** or **`help wanted`**.
+- Open an [Issue](../../issues) to report a bug or request a feature, or send a [Pull Request](../../pulls).
+- Use [Discussions](../../discussions) for questions and ideas.
+
+> 💡 The project is **self-contained with zero external libraries** (vanilla JS), which makes it very easy to understand and contribute to.
+
+## ⭐ Support the project
+
+If you like this app, please give it a **star** — it helps other developers discover it and contribute.
+
+- 🌐 Live demo: **https://ahmedawe2026-svg.github.io/DBA-Research-Dissertation-Assistant/**
+- 🐞 Report a bug or request a feature via [Issues](../../issues)
+
+---
+
 ## 📄 License
 Released under the **MIT** License — see [LICENSE](LICENSE).
